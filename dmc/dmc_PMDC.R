@@ -838,15 +838,6 @@ get.pinf.subjects <- function(funs=list(mean), hsamples, eff.names= c()) {
 }
 
 
-get.msds <- function(samples) {
-  av.thetas <-fixedeffects.meanthetas(samples)[[1]]
-  msds <- cbind(apply(av.thetas, 2, mean), apply(av.thetas, 2, sd))
-  colnames(msds) <- c("M", "SD")
-  msds <- data.frame(msds)
-  msds
-}
-
-
 ###########################Air Traffic Control Project#############################
 
 
@@ -1794,4 +1785,31 @@ plot.PM.x2 <- function (test) {
   
   hacked.RP.dmc(test[1:4,], xaxis="effect") +ylab("PM Accuracy") +ylim(0.2,1) +xlab("
                                                                                     ")
+}
+
+
+fast.avgsamples <- function (hsamples) {
+  nmcs<- sapply(hsamples, function(x) x$nmc)
+  nmc <- min(nmcs)
+#Different numbers of nmc for each participant... use the min number and then
+  #for participants wtih more randomly sample out that many
+  for (i in 1:length(hsamples)) if (nmcs[i] > nmc) hsamples[[i]]$theta <- 
+    hsamples[[i]]$theta[,,sample(1:dim(hsamples[[i]]$theta)[3], nmc)]
+  avg <- list()
+  for (i in 1:length(hsamples)) avg [[i]] <- hsamples[[i]]$theta
+  avg2 <- unlist(avg)
+  dim3 <- c(dim(avg[[1]]), length(avg2)/prod(dim(avg[[1]])))
+  dim(avg2) <- dim3
+  out <- apply(avg2, c(1,2,3), mean)
+  colnames(out) <- dimnames(avg[[1]])[[2]]
+  out
+}
+
+get.msds <- function(samples) {
+  avg_samples <- fast.avgsamples(samples)
+  M <- apply(avg_samples, 2, mean)
+  SD <- apply(avg_samples, 2, sd)
+  out <- cbind(M,SD)
+  colnames(out) <- c("M", "SD")
+  out
 }
