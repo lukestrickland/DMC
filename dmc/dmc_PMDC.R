@@ -1813,3 +1813,206 @@ get.msds <- function(samples) {
   colnames(out) <- c("M", "SD")
   out
 }
+
+
+
+
+
+# 
+# 
+# library("ggplot2")
+# library("abind")
+# theme_luke <- function (base_size = 12, base_family = "") {
+#   theme_gray(base_size = base_size, base_family = base_family) %+replace% 
+#     theme(
+#       panel.background = element_rect(fill="white"),
+#       panel.grid.minor.y = element_blank(),
+#       legend.key = element_rect(fill="white", colour= "white"),
+#       strip.background = element_rect(fill="white")
+#       
+#     )   
+# }
+# 
+# 
+# ###Basic proportion/quantile predictice function. Sims a df same size as data for each n.post.
+# quantile.proportion.predictives.dmc <- function(samples,n.post=100,report=10, probs= c (0.1, 0.5, 0.9)) {
+#   model <- attributes(samples$data)$model
+#   facs <- names(attr(model,"factors")); nfacs <- length(facs)
+#   resp <- names(attr(model,"responses")) ## sometimes do not have names
+#   ns <- table(samples$data[,facs])  ## number of level of stimulus factor
+#   n.rep <- sum(ns)     ## total number of data points
+#   n.par <- dim(samples$theta)[2]    ## dim[1]=chains; dim[2]=list of para; dim[3]=samples
+#   
+#   ## accumulate chain1, chain2, chain3, ... all on one column for each para
+#   thetas <- matrix(aperm(samples$theta,c(1,3,2)),ncol=n.par)
+#   colnames(thetas) <- dimnames(samples$theta)[[2]]
+#   
+#   
+#   ## random select n.post samples from thetas for each para
+#   posts <- thetas[sample(c(1:nrow(thetas)), n.post, replace=F),]
+#   
+#   ## Construct a NA container with same dimension as data to store simulation data
+#   sim <- data.frame(matrix(nrow=n.post*n.rep, ncol=ncol(samples$data)))
+#   names(sim) <- names(samples$data)
+#   
+#   
+#   for (i in names(samples$data)) {
+#     sim[[i]] <- factor(rep(NA,n.post*n.rep),levels=levels(samples$data[[i]]))
+#   }
+#   ## Every "report" step prints one dot
+#   message(paste0("\n Simulating (each dot = ",report," steps): "))
+#   
+#   ## before looping paste a string together to tell the aggregate function about the design   
+#   form <- "RT~"
+#   form <- paste(form, facs[1], sep="")
+#   for (k in 2:length(facs)) form <- paste(form,"+", paste(facs[k]));designform<- form; form <- paste (form, " + R")
+#   form <- as.formula(form)
+#   
+#   ##make data frame design.grid with number of trial for each combination. exclude 0s   
+#   full.design <- expand.grid(lapply(samples$data[,1:(length(facs)+1)],unique))   
+#   npresent <- aggregate(as.formula(designform), data=samples$data, na.action=NULL, FUN="length")
+#   designgrid <- merge(full.design, npresent, by =facs)
+#   names(designgrid)[length(designgrid)] <- "npresent"
+#   designgrid$nresps <- 0  
+#   
+#   
+#   # data calculations
+#   data.qqs <- aggregate(form,  data=samples$data, FUN="quantile", probs= probs)
+#   data.respsmade <- aggregate(form, data=samples$data, na.action=NULL, FUN="length")
+#   data.pps<-designgrid
+#   data.pps$nresps[match(do.call(paste,data.respsmade[,1:(length(facs)+1)]),do.call(paste,data.pps[,1:(length(facs)+1)]))]<-data.respsmade$RT
+#   data.pps$proportion <- data.pps$nresp/data.pps$npresent
+#   
+#   
+#   
+#   ## Posterior sim loop
+#   ## 1:1*nrep, 20001:2*n.rep, 40001:3*n.rep
+#   
+#   
+#   
+#   for (i in 1:n.post) {
+#     
+#     currentsim <- simulate.dmc(posts[i,],model,ns)
+#     if ( (i %% report) == 0) message(".", appendLF = FALSE)
+#     
+#     qqs <-  aggregate(form,  data=currentsim, FUN="quantile", probs= probs)
+#     qqs$rep <- i
+#     respsmade <- aggregate(form,  data=currentsim, FUN="length")
+#     pps<-designgrid
+#     pps$nresps[match(do.call(paste,respsmade[,1:(length(facs)+1)]),do.call(paste,pps[,1:(length(facs)+1)]))]<-respsmade$RT
+#     pps$proportion <- pps$nresp/pps$npresent
+#     
+#     
+#     ###
+#     pps$rep <- i
+#     if (i==1) { fullpps<- pps; fullqqs <- qqs } 
+#     else {fullpps <- rbind(fullpps, pps); fullqqs <- rbind(fullqqs, qqs)}
+#     
+#   }
+#   out <- list(fullpps, fullqqs, data.pps, data.qqs)
+#   names(out) <- c("proportions", "quantiles", "data.proportions", "data.quantiles")
+#   out
+#   
+# }
+# 
+# 
+# ## creates a data frame with the data and sim proportions averaged over subjects
+# ## averages the proportions over all subjects into a single df for both data and model
+# # takes from pp (.proportions), converts from list (df), averages (meansim, meandata)
+# group.pp <- function (pp) {
+#   sim.proportions <- lapply (pp, function(x) x[["proportions"]])
+#   for (i in 1:length(sim.proportions)) sim.proportions[[i]]$subject <- as.character(i)
+#   simdf<- do.call("rbind", sim.proportions)
+#   form <- "proportion~"
+#   form <- paste(form, colnames(simdf)[1],sep="")
+#   for (k in 2:(length(colnames(simdf))-5)) form <- paste(form,"+", paste(colnames(simdf)[k]));dataform <-form; form <- paste(form,"+", "rep")
+#   meansim <- aggregate(as.formula(form),  data=simdf, FUN="mean")
+#   data.proportions <- lapply (pp, function(x) x[["data.proportions"]])
+#   for (i in 1:length(data.proportions)) data.proportions[[i]]$subject <- as.character(i)
+#   datadf<- do.call("rbind", data.proportions)
+#   meandata <- aggregate(as.formula(dataform),  data=datadf, FUN="mean")
+#   out <- list(meansim, meandata)
+#   names(out) <- c("sim", "data")
+#   out
+# }
+# 
+# #### takes averaged proportions and for the model calculates mean, lower quantile, upper quantile (i.e bayesian error bars)
+# ggplot.proportions.dmc <- function (pp, form="S+R", lower=0.025, upper= 0.975) {
+#   if (names(pp)[1]== "proportions") {sim <- pp[["proportions"]]; dat <- pp[["data.proportions"]]} else {
+#     sim <- group.pp (pp)  [["sim"]]
+#     dat <- group.pp (pp)  [["data"]]
+#   }
+#   form <- paste("proportion~", form)
+#   sim.df <- aggregate (as.formula(form), data= sim, FUN= function(x) c(mean(x), quantile(x, probs= lower), quantile(x, probs= upper)))
+#   data.df <- aggregate (as.formula(form), data= dat, FUN= "mean");names(data.df)[length(data.df)] <- "data"
+#   plot.df <- join(sim.df, data.df)
+#   plot.df <- do.call(data.frame, plot.df)
+#   names(plot.df)[(length(plot.df)-3):(length(plot.df)-1)]<- c("mean", "lower", "upper")
+#   plot.df
+# }
+# 
+# single.qq <- function (x) {
+#   out <- do.call(data.frame, x)
+#   index <-grep("RT.", colnames(out))
+#   names(out)[index] <- paste("q", dimnames(x$RT)[[2]], sep="")
+#   names(out) <- strsplit(names(out), "%")
+#   out[,c(1:index[1]-1, length(out), index[1]:(length(out)-1))]
+# }
+# 
+# group.qq <- function (pp) {
+#   sim.RTs <- lapply (pp, function(x) x[["quantiles"]])
+#   for (i in 1:length(sim.RTs)) sim.RTs[[i]]$subject <- as.character(i)
+#   simdf<- do.call("rbind", sim.RTs)
+#   form <- "RT~"
+#   form <- paste(form, colnames(simdf)[1],sep="")
+#   for (k in 2:(length(colnames(simdf))-3)) form <- paste(form,"+", paste(colnames(simdf)[k]));dataform <-form; form <- paste(form,"+", "rep")
+#   # averages the quantiles but note also turns them into columns of the df
+#   meansim <- aggregate(as.formula(form),  data=simdf, FUN="mean")
+#   ## fix issue with quantile names starting with numbers
+#   index <-grep("rep", colnames(meansim))
+#   names(meansim)[index+1:(length(meansim)-index)] <- paste("q", names(meansim)[index+1:(length(meansim)-index)], sep="")
+#   names(meansim) <- strsplit(names(meansim), "%")
+#   
+#   data.RTs <- lapply (pp, function(x) x[["data.quantiles"]])
+#   for (i in 1:length(data.RTs)) data.RTs[[i]]$subject <- as.character(i)
+#   datadf<- do.call("rbind", data.RTs)
+#   meandata <- aggregate(as.formula(dataform),  data=datadf, FUN="mean")
+#   ##fix naming for data as well 
+#   names(meandata)[index:length(meandata)] <- paste("q", names(meandata)[index:length(meandata)], sep="")
+#   names(meandata) <- strsplit(names(meandata), "%")
+#   out <- list(meansim, meandata)
+#   names(out) <- c("sim", "data")
+#   out
+# }
+# ggplot.quantiles.dmc <- function (pp, aform="S+R", lower=0.025, upper= 0.975) {
+#   if (names(pp)[1]== "proportions") {sim <- single.qq(pp[["quantiles"]]); dat<- single.qq(pp[["data.quantiles"]])} else {
+#     sim <- group.qq (pp)  [["sim"]]
+#     dat <- group.qq (pp)  [["data"]]
+#   }
+#   quantile.list <- list()
+#   ind<-  grep("rep", names(sim))
+#   n.quants <- length(sim) - ind
+#   for (i in 1:n.quants) {
+#     form <- as.formula(paste(paste(names(sim)[ind+i], "~"), aform))
+#     mean.df <- aggregate (form, data= sim, FUN= function(x) c(mean(x), quantile(x, probs= lower), quantile(x, probs= upper)))
+#     data.df <- aggregate (form, data= dat, FUN= "mean");names(data.df)[length(data.df)] <- "data"
+#     plot.df <- do.call(data.frame, join(mean.df, data.df))
+#     names(plot.df)[(length(plot.df)-n.quants ): (length(plot.df)-1)] <- c("mean", "lower", "upper")
+#     plot.df$quantile <- names(sim)[ind+i]
+#     quantile.list[[i]] <- plot.df ; names(quantile.list) [i] <- names(sim)[ind+i]
+#   }
+#   do.call(rbind, quantile.list)
+# }
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
+# 
