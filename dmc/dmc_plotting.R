@@ -886,13 +886,16 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
   # get ps Including non-responses
   ps.na <- get.ps(sim, factors=c("reps", factors),R=C.sim,include.na=TRUE)
   ps.na[is.nan(ps.na)] <- 0
-  pp.df.na <- get.df(ps.na,get.ps(data, factors,R=C.data,include.na=TRUE), tapplyvec, len=plen)
+  dps.na <- get.ps(data, factors,R=C.data,include.na=TRUE)
+  dps.na[is.nan(dps.na)] <- 0
+  pp.df.na <- get.df(ps.na,dps.na, tapplyvec, len=plen)
   
   # get Only non-responses
   ps.pna <- get.ps(sim, factors=c("reps", factors),R=C.sim,only.na=TRUE)
   ps.pna[is.nan(ps.pna)] <- 0
-  pp.df.pna <- get.df(ps.pna, get.ps(data, factors,R=C.data,only.na=TRUE), tapplyvec, len=plen)
-  
+  dps.pna <- get.ps(data, factors,R=C.data,only.na=TRUE)
+  dps.pna[is.nan(dps.pna)] <- 0
+  pp.df.pna <- get.df(ps.pna, dps.pna,  tapplyvec, len=plen)
   
   ###Filter RTs by correct/error if requested  
   if (scored) {
