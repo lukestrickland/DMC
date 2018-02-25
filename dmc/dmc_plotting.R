@@ -723,15 +723,16 @@ theme_simple <- function (base_size = 12, base_family = "") {
 
 # sim=sim; data=data; factors=NULL; CI= c(0.025, 0.975)
 # quantiles.to.get = c(0.1, 0.5, 0.9); noR = FALSE
-get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
-  quantiles.to.get = c(0.1, 0.5, 0.9), CI= c(0.025, 0.975),
-  acc.fun=function(x){as.numeric(x$S)==as.numeric(x$R)},
-  correct.only=FALSE,error.only=FALSE, custom.fun=FALSE, custom.name="custom", custom.has.narm=FALSE)
+
+get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,  
+                               quantiles.to.get = c(0.1, 0.5, 0.9), CI= c(0.025, 0.975),
+                               acc.fun=function(x){as.numeric(x$S)==as.numeric(x$R)},
+                               correct.only=FALSE,error.only=FALSE)  
   # Extracts list of data frames, pps (response proabilities) and RTs
   # from the save.simulation output of post.predict
 {
-
-  arr2df=function(arr)
+  
+  arr2df=function(arr) 
   {
     if (is.null(dim(arr))) out=data.frame(y=arr) else {
       dn=dimnames(arr)
@@ -754,50 +755,45 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
     }
     out
   }
-
-  get.ps <- function (sim, factors,R)
+  
+  get.ps <- function (sim, factors,R,include.na=FALSE,only.na=FALSE) 
   {
     n <- tapply(sim$RT,cbind.data.frame(sim[,factors],R=R),length)
     n[is.na(n)] <- 0 # In case some cells are empty
     nok <- tapply(sim$RT,cbind.data.frame(sim[,factors],R=R),function(x){sum(!is.na(x))})
     nok[is.na(nok)] <- 0 # In case some cells are empty
-
-    # In the case that there are no factors, the apply doesn't work, and in this
+    
+    # In the case that there are no factors, the apply doesn't work, and in this 
     # case we can just sum all the Rs instead.
-    if(is.null(factors)) np <- sum(nok) else
+    if(is.null(factors)) np <- sum(n) else 
       np <- rep(apply(n,1:length(factors),sum),times=length(levels(R)))
-
-    nok/np
-  }
-
-  get.stat <- function(fun,data,sim,tapplyvec, has.narm=TRUE) {
-    if (has.narm) mean.sim <- tapply(sim$RT,sim[ ,tapplyvec],fun,na.rm=TRUE) else {
-      mean.sim <- tapply(sim$RT,sim[ ,tapplyvec],fun)
-    }
-    mean.df <- arr2df(apply(mean.sim,2:len,mean, na.rm=TRUE))
+    
+    if (only.na) (n-nok)/np else if (include.na) n/np else nok/np
+  }  
+  
+  get.stat <- function(fun,data,sim,tapplyvec) {
+    mean.sim <- tapply(sim$RT,sim[ ,tapplyvec],fun,na.rm=TRUE)
+    mean.df <- arr2df(apply(mean.sim,2:len,quantile,probs=.5, na.rm=TRUE))
     mean.df$lower <- as.vector(apply(mean.sim,2:len,quantile,probs=CI[1], na.rm=TRUE))
     mean.df$upper <- as.vector(apply(mean.sim,2:len,quantile,probs=CI[2], na.rm=TRUE))
-    
-    if (has.narm) mean.df$data <- as.vector(tapply(data$RT,data[ ,tapplyvec[-1]],fun,na.rm=TRUE))else {
-    mean.df$data <- as.vector(tapply(data$RT,data[ ,tapplyvec[-1]],fun))
-    }
+    mean.df$data <- as.vector(tapply(data$RT,data[ ,tapplyvec[-1]],fun,na.rm=TRUE))
     names(mean.df)[names(mean.df)=="y"] <- "median"
     if (dim(mean.df)[2]==4) {
       mean.df <- cbind.data.frame(row.names(mean.df),mean.df)
-      names(mean.df)[1] <- tapplyvec[2]
+      names(mean.df)[1] <- tapplyvec[2]  
     }
     mean.df
   }
-
+  
   if (correct.only & error.only)
     stop("Cant plot only correct and only error, set only one to true")
-
+  
   if (is.function(acc.fun)) {
     try(C.sim <- acc.fun(sim),silent=TRUE)
     try(C.data <- acc.fun(data),silent=TRUE)
     if (class(C.sim)=="try-error" | class(C.data)=="try-error")
     {
-      warning("Accuracy function could not score properly")
+      warning("Accuracy function could not score properly") 
       C.sim <- sim[,"R"]
       C.data <- data[,"R"]
       scored <- FALSE
@@ -811,38 +807,63 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
     C.data <- data[,"R"]
     scored <- FALSE
   }
-
-
+  
+  
   if ( is.null(factors) & noR ) stop ("Cannot plot when no factors and noR TRUE")
-  if ( !is.null(factors) && is.na(factors[1]) )
-    factors <-  colnames(sim) [!colnames (sim) %in% c("reps", "R", "RT","R2")]
+  if ( !is.null(factors) && is.na(factors[1]) ) 
+    factors <-  colnames(sim) [!colnames (sim) %in% c("reps", "R", "RT","R2")] 
   if (!noR) {
     C.sim <- sim[,"R"]
     C.data <- data[,"R"]
-  }
+  } 
+  
+  # With non-responses ignored
   ps <- get.ps(sim, factors=c("reps", factors),R=C.sim)
   ps[is.nan(ps)] <- 0
-  len <- length(factors) + 1
-  pp.df <- arr2df(apply(ps, 2:length(dim(ps)), mean, na.rm=T))
+  len <- length(factors) + 1   
+  pp.df <- arr2df(apply(ps, 2:length(dim(ps)), quantile, probs = .5, na.rm=T))
   pp.df$lower <- as.vector(apply(ps, 2:length(dim(ps)), quantile, probs=CI[1], na.rm=TRUE))
   pp.df$upper <- as.vector(apply(ps, 2:length(dim(ps)), quantile, probs=CI[2], na.rm=TRUE))
   pp.df$data <- as.vector(get.ps(data, factors,R=C.data))
   names(pp.df)[names(pp.df)=="y"] <- "median"
-
+  
+  # Including non-responses
+  ps.na <- get.ps(sim, factors=c("reps", factors),R=C.sim,include.na=TRUE)
+  ps.na[is.nan(ps.na)] <- 0
+  len <- length(factors) + 1   
+  pp.df.na <- arr2df(apply(ps.na, 2:length(dim(ps.na)), quantile, probs = .5, na.rm=T))
+  pp.df.na$lower <- as.vector(apply(ps.na, 2:length(dim(ps.na)), quantile, probs=CI[1], na.rm=TRUE))
+  pp.df.na$upper <- as.vector(apply(ps.na, 2:length(dim(ps.na)), quantile, probs=CI[2], na.rm=TRUE))
+  pp.df.na$data <- as.vector(get.ps(data, factors,R=C.data,include.na=TRUE))
+  names(pp.df.na)[names(pp.df.na)=="y"] <- "median"
+  
+  # Only non-responses
+  ps.pna <- get.ps(sim, factors=c("reps", factors),R=C.sim,only.na=TRUE)
+  ps.pna[is.nan(ps.pna)] <- 0
+  len <- length(factors) + 1   
+  pp.df.pna <- arr2df(apply(ps.pna, 2:length(dim(ps.pna)), quantile, probs = .5, na.rm=T))
+  pp.df.pna$lower <- as.vector(apply(ps.pna, 2:length(dim(ps.pna)), quantile, probs=CI[1], na.rm=TRUE))
+  pp.df.pna$upper <- as.vector(apply(ps.pna, 2:length(dim(ps.pna)), quantile, probs=CI[2], na.rm=TRUE))
+  pp.df.pna$data <- as.vector(get.ps(data, factors,R=C.data,only.na=TRUE))
+  names(pp.df.pna)[names(pp.df.pna)=="y"] <- "median"
+  
   ## if there are no factors, need to fix the pp.df by adding an R column
-  if( is.null(factors) ) pp.df$R <- rownames(pp.df)
-
+  if( is.null(factors) ) {
+    pp.df$R <- rownames(pp.df)
+    pp.df.na$R <- rownames(pp.df.na)
+    pp.df.pna$R <- rownames(pp.df.pna)
+  }
   # Drop the response factor from RT calculations if noR == T
-  if (noR == FALSE) {
-    len <- length(factors) +2
-    tapplyvec <- c("reps", factors,"R")
-  } else {
-    if (noR == TRUE) {
+  if (noR == FALSE) { 
+    len <- length(factors) +2 
+    tapplyvec <- c("reps", factors,"R") 
+  } else { 
+    if (noR == TRUE) { 
       len <- length(factors) +1
-      tapplyvec <- c("reps", factors)
+      tapplyvec <- c("reps", factors)  
     }
   }
-
+  
   if (scored) {
     if (correct.only) {
       sim <- sim[C.sim=="TRUE",]
@@ -853,47 +874,43 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
       data <- data[C.data!="TRUE",]
     }
   }
-
+  
   # First calc all quantiles of the RT distribution for each rep
   all.quants <- tapply(sim$RT,sim[ ,tapplyvec],quantile, prob=quantiles.to.get,na.rm=TRUE)
   DIM <- dim(all.quants)
-  DIMnames <- dimnames(all.quants)
+  DIMnames <- dimnames(all.quants)  
   all.quants <- lapply(all.quants, function(x) as.numeric(as.character(x)))
-
-  # then Loop through specified quantiles of the RT distribution, for each
-  # calculating posterior mean + CI then bind to data frame.
+  
+  # then Loop through specified quantiles of the RT distribution, for each 
+  # calculating posterior mean + CI then bind to data frame. 
   for (i in 1:length(quantiles.to.get)) {
     quant.array <- unlist(lapply(all.quants, function(x) x[i]))
     dim(quant.array) <-  DIM
-    dimnames(quant.array) <- DIMnames
-    quant.df <- arr2df(apply(quant.array, 2:len, mean, na.rm=TRUE))
+    dimnames(quant.array) <- DIMnames 
+    quant.df <- arr2df(apply(quant.array, 2:len, quantile, probs = 0.5, na.rm=TRUE))
     quant.df$lower <- as.vector(apply(quant.array, 2:len, quantile, prob=CI[1], na.rm=TRUE))
     quant.df$upper <- as.vector(apply(quant.array, 2:len, quantile, prob=CI[2], na.rm=TRUE))
-    quant.df$data <- as.vector(tapply(data$RT, data[, c(tapplyvec[tapplyvec!="reps"])],
-      quantile, prob=quantiles.to.get[i],na.rm=TRUE))
+    quant.df$data <- as.vector(tapply(data$RT, data[, c(tapplyvec[tapplyvec!="reps"])], 
+                                      quantile, prob=quantiles.to.get[i],na.rm=TRUE))
     quant.df$quantile <- as.character(quantiles.to.get[i])
-
+    
     ### This bit is to deal with cases where there is only one factor (or just R is requested)
     ### the structure about will coerce the one factor or R into rownames, so this puts it back as a column
     if ( length(colnames(quant.df) [
-      !colnames (quant.df) %in% c("median", "lower", "upper", "data", "quantile", "y")])==0)
+      !colnames (quant.df) %in% c("median", "lower", "upper", "data", "quantile", "y")])==0) 
     {
       quant.df <- cbind(quant.df, rownames(quant.df))
       names(quant.df)[length(quant.df)] <- tapplyvec[tapplyvec!="reps"]
     }
-
-    if (i==1) RT.df <- quant.df  else  RT.df <- rbind(RT.df, quant.df)
-
+    
+    if (i==1) RT.df <- quant.df  else  RT.df <- rbind(RT.df, quant.df) 
+    
   }
   names(RT.df)[names(RT.df)=="y"] <- "median"
-
-  if (!is.function(custom.fun)) {out <- list(pp.df, RT.df,get.stat(mean,data,sim,tapplyvec),
-    get.stat(sd,data,sim,tapplyvec))
-  names(out) <- c("pps", "RTs","MeanRTs","SDRTs")
-  } else{ out <- list(pp.df, RT.df,get.stat(mean,data,sim,tapplyvec),
-    get.stat(sd,data,sim,tapplyvec), get.stat(custom.fun,data,sim,tapplyvec, has.narm=custom.has.narm))
-  names(out) <- c("pps", "RTs","MeanRTs","SDRTs", custom.name)
-  }
+  
+  out <- list(pp.df, pp.df.na, pp.df.pna,RT.df,get.stat(mean,data,sim,tapplyvec),
+              get.stat(sd,data,sim,tapplyvec))
+  names(out) <- c("pps","pps.NR","NRpps","RTs","MeanRTs","SDRTs")
   out
 }
 
