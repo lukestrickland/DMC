@@ -303,6 +303,34 @@ ggplot.RA.dmc(noRs[["pps"]])
 ggplot.RT.dmc(noRs[["RTs"]], xaxis='S')
 
 
+############For groups of participants, by default get.fitgglist.dmc concatenates all
+#participants into a single data frame, and then calculate statistics  (e.g., RT quantiles)
+#on that group data frame. One upsides of this is it avoids cells with small amounts of data.
+#It can be worthwhile avoiding this issue for statistics such as the RT quantiles, where 
+#calculating the statistics with small amounts of RT relies on interpolation methods which 
+#can often make little sense (e.g., with one data point, )
+quantile(3, probs=c(0.1,0.5,0.9))
+quantile(c(4,5), probs=c(0.1,0.5,0.9))
+
+##However, the downside of this method of evaluating fit is that RT variability within individuals,
+#and variability between individuals, is combined. This may not be appropriate for some questions,
+#for example if a researcher wishes to explicitly examine fit to the 
+#standard deviation of RT within each individual
+#For these purposes, we provide an alternative.If the user provides the list of PPs
+#to the argument hPP, the function will calculate everything at the level of each individual subject,
+#and then average the resulting statistics across subjects after calculation.
+
+lnr.byparticipant.list <- get.fitgglist.dmc(lnr.group.sim, hPP = lnr.group.sim )
+
+###We can see here the SD is lower in all cases when calculated separately for each
+#participant rather than on the group data frame (because this method removes variability
+#across participants). The model also fit the sds with variability across participants removed
+#more closely.
+
+#Statistics calculated per participant
+ggplot.RT.dmc(lnr.byparticipant.list[["SDRTs"]], do.quantiles=F)
+#Statistics calculated on concatenated data (from earlier)
+ggplot.RT.dmc(lnr.group.gglist[["SDRTs"]], do.quantiles=F)
 
 
 
