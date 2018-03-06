@@ -308,7 +308,7 @@ ggplot.RT.dmc(noRs[["RTs"]], xaxis='S')
 #on that group data frame. One upsides of this is it avoids cells with small amounts of data.
 #It can be worthwhile avoiding this issue for statistics such as the RT quantiles, where 
 #calculating the statistics with small amounts of RT relies on interpolation methods which 
-#can often make little sense (e.g., with one data point, )
+#can often make little sense (e.g., with one data point)
 quantile(3, probs=c(0.1,0.5,0.9))
 quantile(c(4,5), probs=c(0.1,0.5,0.9))
 
@@ -332,5 +332,21 @@ ggplot.RT.dmc(lnr.byparticipant.list[["SDRTs"]], do.quantiles=F)
 #Statistics calculated on concatenated data (from earlier)
 ggplot.RT.dmc(lnr.group.gglist[["SDRTs"]], do.quantiles=F)
 
+#####get.fitgglist can also calculate any custom function of response time..
+#As an example here, we show the coefficient of variation (SD/M), which is a scaled
+#measure of the spread of RTs
+lnr.byparticipant.list <- get.fitgglist.dmc(lnr.group.sim, hPP = lnr.group.sim
+                                            ,custom.RTfun= function(x) sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
+                                            custom.name = "covar")
+
+ggplot.RT.dmc(lnr.byparticipant.list[["covar"]], do.quantiles=F)
 
 
+###As it includes standard dviation, this statistic is different between the
+#concatenated-first and subject-statistic data in similar ways 
+lnr.byparticipant.list <- get.fitgglist.dmc(sim,data,
+                                            
+                                            custom.RTfun= function(x) sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
+                                            custom.name = "covar")
+
+ggplot.RT.dmc(lnr.byparticipant.list[["covar"]], do.quantiles=F)
