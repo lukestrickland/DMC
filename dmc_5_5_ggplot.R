@@ -1,12 +1,13 @@
 ##################  DMC Lesson 5: Advanced Multiple subjects
 #for this lesson we will also use another package, gridExtra, to stack ggplots together
 install.packages("gridExtra") 
-your_directory_here <- "~/code/Strickland_DMC"
+
 
 
 ### Lesson 5.5:  Using ggplot2 with DMC samples.
 
 rm(list=ls())
+your_directory_here <- "~/code/Strickland_DMC"
 setwd(your_directory_here)
 source("dmc/dmc.R")
 require(gridExtra)
@@ -17,18 +18,20 @@ library(ggplot2)
 # The posterior prediction functions, post.predict.dmc and h.post.predict.dmc, 
 # can save an attribute called "gglist", to be used with ggplot2.
 # This attribute is a list with several elements, each containing a data frame.
-# The first df contains data and posterior predictions for response proportion, 
+# "pps" contains data and posterior predictions for response proportion, 
 # that is, the proportion of times a certain response is made to a stimulus. 
 # Response proportion for the 'correct' response to a stimulus is the accuracy.
-# The second element contains proportions of `non-responses', for designs in which
+# "pps.NR" contains the response proportions when non-response trials are removed
+# before calculating, for designs in which
 # responses can be omitted.
-# The third element contains RT quantiles, for example the median, which is the 
+# "NR.pps" contains proportions of `non-responses'
+# "RTs" contains RT quantiles, for example the median, which is the 
 # middle value in the RT distribution, the 0.1 quantile, which is the value 
 # greater than or equal to 10% of observed responses, and the 0.9 quantile,
 # which is the value greater or equal to 90% of observed responses.
 # The RT quantiles that are calculated can be changed with the argument
 # probs.gglist 
-#The fourth and fifth element contain posterior predictive for mean RT,
+#The "MeanRTs" and "SDRTs" contain posterior predictive for mean RT,
 # and SD of RTs, respectively.
 
 # We use a simple LNR example, from lesson 4.4,
@@ -43,7 +46,7 @@ load_model ("LNR","lnrPP.R")
 # gglist = TRUE. It is saved as an attribute - "gglist"
 #
 
-lnrppredicts <- post.predict.dmc(samples3[["pps"]], gglist=TRUE)
+lnrppredicts <- post.predict.dmc(samples3[[1]], gglist=TRUE)
 attr(lnrppredicts, "gglist")
 # $pps
 #    S  R    mean  lower  upper  data
@@ -62,7 +65,7 @@ attr(lnrppredicts, "gglist")
 
 #different number of RT quantiles - 5 not 3
 
-lnrppredicts <- post.predict.dmc(samples3[["pps"]], gglist=T, probs.gglist=
+lnrppredicts <- post.predict.dmc(samples3[[1]], gglist=T, probs.gglist=
                                    seq(0.1, 0.9, 0.2))
 attr(lnrppredicts, "gglist")
 # ...
@@ -85,7 +88,8 @@ attr(lnrppredicts, "gglist")
 # participants. The function gets these averages by stacking all the data 
 # together into one big data frame then calculating all statistics, that is the 
 # RT quantiles and response proportions, for the whole data frame. The same is 
-# done for the simulated data (sim). The "mean" value of the sim is the average 
+# done for the simulated data (sim). See the bottom of the lesson for an alternative
+# way to average the data. The "median" value for each summary statistics is the median
 # of all the posterior predictions. The CI values provide some lower and upper 
 # credible interval, which is the quantile of the posterior predictions. The 
 # range of the credible intervals is by default 95%, but can be changed with the 
@@ -110,8 +114,8 @@ attr(attr(lnr.group.ppredicts, "av"), "gglist")
 # The ggplot2 package provides researchers with intuitive graphics
 # syntax to quickly produce plots. Some researchers may already be very familiar
 # with ggplot, in which case they may wish to grab the "gglist" attribute from
-# their PP object and do their own thing. We include three convenience functions 
-# in DMC that generate quick ggplots of RT and response proportion data with 
+# their PP object and plot it themselves from scratch. We include some convenience
+# functions in DMC to generate quick ggplots of RT and response proportion data with 
 # sensible settings. These functions can read the output of post.predict.dmc 
 # and h.post.predict.dmc directly, provided that a gglist attribute was saved. 
 
@@ -166,7 +170,7 @@ ggplot.RT.dmc(lnr.group.ppredicts) +
 
 
 # Although the default output of the above functions may sometimes suffice,
-# in some cases the user may want to modify the data in some way.
+# often the user may want to modify the data in some way.
 # For example, they may wish to subset the data, or modify the factor labels and
 # levels.
 
@@ -178,13 +182,13 @@ ggplot.RT.dmc(lnr.group.ppredicts) +
 # that is the proportion of correct responses to a stimulus. 
 # A quick way to achieve this is to modify the data being plotted.
 
-lnr.group.gglist <- attr(attr(lnr.group.ppredicts, "av"), "gglist")
+lnr.group.list <- attr(attr(lnr.group.ppredicts, "av"), "gglist")
 
 # Thus, extract the rp df, take only the correct responses, and drop the 
 # now redundant "R" column that denotes the observed response. The response
 # column is redundant because only the correct response for each stimulus will 
 # be plotted.
-acc.df <- lnr.group.gglist[["pps"]]
+acc.df <- lnr.group.list[["pps"]]
 acc.df <- acc.df[(acc.df$S=="s1" & acc.df$R=="r1") | 
                    (acc.df$S=="s2" & acc.df$R=="r2"),]
 acc.df<- acc.df[-2]
@@ -201,7 +205,7 @@ acc.df
 ggplot.RP.dmc(acc.df, xaxis="S") + ylab("accuracy") + ylim(c(0.6, 0.7))
 
 # Similarly, if you wish to examine only the response times of correct responses. 
-correctonly.df <- lnr.group.gglist[["RTs"]]
+correctonly.df <- lnr.group.list[["RTs"]]
 correctonly.df<- correctonly.df[(correctonly.df$S=="s1" &
                                    correctonly.df$R=="r1")| 
                                   (correctonly.df$S=="s2" & correctonly.df$R=="r2"),]
@@ -212,7 +216,7 @@ ggplot.RT.dmc(correctonly.df, xaxis="S") + ylab("Correct RT")
 
 # The user may also wish to modify the labels of the panels, a
 # quick way to do this is to modify the factor labels in the data frame e.g.,:
-df.newlabels <- lnr.group.gglist[["RTs"]]
+df.newlabels <- lnr.group.list[["RTs"]]
 levels(df.newlabels$S)<- c("Stimulus One", "Stimulus Two")
 ggplot.RT.dmc(df.newlabels)
 
@@ -224,15 +228,15 @@ ggplot.RT.dmc(lnr.group.ppredicts) +
 
 # One way to change the order in which plots are presented is to change the 
 # order in the data frame. 
-df.neworder <- lnr.group.gglist[["RTs"]]
+df.neworder <- lnr.group.list[["RTs"]]
 df.neworder$S <- factor(df.neworder$S, levels= c("s2", "s1"))
 ggplot.RT.dmc(df.neworder)
 
 # The gglist attribute also has the mean RT and the sd of RT - elements
 # [[3]] and [[4]]. They will work with the ggplot.RT.dmc
 # function with do.quantiles=FALSE
-ggplot.RT.dmc(lnr.group.gglist[["MeanRTs"]], do.quantiles=FALSE) +ylab("Mean RT")
-ggplot.RT.dmc(lnr.group.gglist[["SDRTs"]], do.quantiles=FALSE) +ylab("SD RT")
+ggplot.RT.dmc(lnr.group.list[["MeanRTs"]], do.quantiles=FALSE) +ylab("Mean RT")
+ggplot.RT.dmc(lnr.group.list[["SDRTs"]], do.quantiles=FALSE) +ylab("SD RT")
 
 # The user may wish to aggregate the data at different 
 # levels to the default. 
@@ -303,50 +307,67 @@ ggplot.RA.dmc(noRs[["pps"]])
 ggplot.RT.dmc(noRs[["RTs"]], xaxis='S')
 
 
-############For groups of participants, by default get.fitgglist.dmc concatenates all
-#participants into a single data frame, and then calculate statistics  (e.g., RT quantiles)
-#on that group data frame. One upsides of this is it avoids cells with small amounts of data.
-#It can be worthwhile avoiding this issue for statistics such as the RT quantiles, where 
-#calculating the statistics with small amounts of RT relies on interpolation methods which 
-#can often make little sense (e.g., with one data point)
-quantile(3, probs=c(0.1,0.5,0.9))
-quantile(c(4,5), probs=c(0.1,0.5,0.9))
+# As mentioned above, to evaluate fit for groups of participants, by default we 
+# concatenate all participants' data frames into a single 'group' data frame, and 
+# then calculate statistics(e.g., RT quantiles) on that. One benefit of this 
+# approach is it avoids problems calculating RT quantiles for design cells that have a
+# very small amount of data per participant. However, the downside of this method of 
+# evaluating fit is that RT variability within individuals, and variability between 
+# individuals, is combined. For some purposes, it may be worth separating the two, by 
+# first calculating summary statistics for each participant individually, and then 
+# averaging the result. get.fitgglist.dmc will do this if, rather than providing a 
+# 'sim' and 'data',the user provides a list of PPs for each participant to the argument 
+# hPP.
 
-##However, the downside of this method of evaluating fit is that RT variability within individuals,
-#and variability between individuals, is combined. This may not be appropriate for some questions,
-#for example if a researcher wishes to explicitly examine fit to the 
-#standard deviation of RT within each individual
-#For these purposes, we provide an alternative.If the user provides the list of PPs
-#to the argument hPP, the function will calculate everything at the level of each individual subject,
-#and then average the resulting statistics across subjects after calculation.
+#Below demonstrates how the two different methods of combining group data can 
+#affect variablity in RT.
 
-lnr.byparticipant.list <- get.fitgglist.dmc(lnr.group.sim, hPP = lnr.group.sim )
+####Get 'sim' and 'data' for the concatenated group data frame method
+lnr.sim <- h.post.predict.dmc(samples3,save.sim=TRUE)
+# Then make 'sim' and 'data' data frames.
+# Stack each subject's similation into one data frame
+sim <- do.call(rbind, lnr.sim)
+# Do the same for the data
+data <- lapply(lnr.sim, function(x) attr(x, "data"))
+data <- do.call(rbind, data)
 
+lnr.group.list <- get.fitgglist.dmc(sim, data)
+
+### get the other method
+lnr.byparticipant.list <- get.fitgglist.dmc(hPP = lnr.group.sim )
+
+
+lnr.group.list[["SDRTs"]]; lnr.byparticipant.list[["SDRTs"]]
 ###We can see here the SD is lower in all cases when calculated separately for each
 #participant rather than on the group data frame (because this method removes variability
-#across participants). The model also fit the sds with variability across participants removed
-#more closely.
+#across participants). 
+
+#Statistics calculated on concatenated data (similar to displayed earlier)
+ggplot.RT.dmc(lnr.group.list[["SDRTs"]], do.quantiles=F)
 
 #Statistics calculated per participant
 ggplot.RT.dmc(lnr.byparticipant.list[["SDRTs"]], do.quantiles=F)
-#Statistics calculated on concatenated data (from earlier)
-ggplot.RT.dmc(lnr.group.gglist[["SDRTs"]], do.quantiles=F)
 
-#####get.fitgglist can also calculate any custom function of response time..
+
+#get.fitgglist can also calculate any custom function of RT if given an argument
+# custom.RTfun. Can also provide a name to custom.name
 #As an example here, we show the coefficient of variation (SD/M), which is a scaled
 #measure of the spread of RTs
+
 lnr.byparticipant.list <- get.fitgglist.dmc(lnr.group.sim, hPP = lnr.group.sim
-                                            ,custom.RTfun= function(x) sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
+                                            ,custom.RTfun= function(x) 
+                                              sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
                                             custom.name = "covar")
 
 ggplot.RT.dmc(lnr.byparticipant.list[["covar"]], do.quantiles=F)
 
 
-###As it includes standard dviation, this statistic is different between the
-#concatenated-first and subject-statistic data in similar ways 
-lnr.byparticipant.list <- get.fitgglist.dmc(sim,data,
+#As it includes standard deviation, this statistic is also a bit different
+# when calculated on the group vs calculated on individuals and then averaged.
+lnr.group.list <- get.fitgglist.dmc(sim,data,
                                             
-                                            custom.RTfun= function(x) sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
+                                            custom.RTfun= function(x) 
+                                              sd(x, na.rm=TRUE)/mean(x, na.rm=TRUE),
                                             custom.name = "covar")
 
-ggplot.RT.dmc(lnr.byparticipant.list[["covar"]], do.quantiles=F)
+ggplot.RT.dmc(lnr.group.list[["covar"]], do.quantiles=F)
