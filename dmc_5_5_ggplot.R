@@ -10,6 +10,7 @@ rm(list=ls())
 setwd(your_directory_here)
 source("dmc/dmc.R")
 require(gridExtra)
+library(ggplot2)
 
 # Please send any questions about the lesson to luke.strickland@utas.edu.au
 
@@ -34,7 +35,7 @@ require(gridExtra)
 # but many of the techniques demonstrated are most useful
 # for more complex designs.
 
-load_data("dmc_5_5.RData") # samples3 from lesson 4.4
+load("D:/Dropbox/Dropbox/code/DMC/Personal_DMC/dmc_5_5.RData")# samples3 from lesson 4.4
 load_model ("LNR","lnrPP.R")
 
 # Below is an example getting the gglist for a single participant.
@@ -42,7 +43,7 @@ load_model ("LNR","lnrPP.R")
 # gglist = TRUE. It is saved as an attribute - "gglist"
 #
 
-lnrppredicts <- post.predict.dmc(samples3[[1]], gglist=TRUE)
+lnrppredicts <- post.predict.dmc(samples3[["pps"]], gglist=TRUE)
 attr(lnrppredicts, "gglist")
 # $pps
 #    S  R    mean  lower  upper  data
@@ -61,7 +62,7 @@ attr(lnrppredicts, "gglist")
 
 #different number of RT quantiles - 5 not 3
 
-lnrppredicts <- post.predict.dmc(samples3[[1]], gglist=T, probs.gglist=
+lnrppredicts <- post.predict.dmc(samples3[["pps"]], gglist=T, probs.gglist=
                                    seq(0.1, 0.9, 0.2))
 attr(lnrppredicts, "gglist")
 # ...
@@ -90,7 +91,7 @@ attr(lnrppredicts, "gglist")
 # range of the credible intervals is by default 95%, but can be changed with the 
 # argument CI.gglist.
 
-lnr.group.ppredicts <- h.post.predict.dmc(samples3, gglist=TRUE)
+lnr.group.ppredicts <- h.post.predict.dmc(samples3)
 attr(attr(lnr.group.ppredicts, "av"), "gglist")
 # $pps
 #    S  R     mean     lower     upper   data
@@ -183,7 +184,7 @@ lnr.group.gglist <- attr(attr(lnr.group.ppredicts, "av"), "gglist")
 # now redundant "R" column that denotes the observed response. The response
 # column is redundant because only the correct response for each stimulus will 
 # be plotted.
-acc.df <- lnr.group.gglist[[1]]
+acc.df <- lnr.group.gglist[["pps"]]
 acc.df <- acc.df[(acc.df$S=="s1" & acc.df$R=="r1") | 
                    (acc.df$S=="s2" & acc.df$R=="r2"),]
 acc.df<- acc.df[-2]
@@ -200,7 +201,7 @@ acc.df
 ggplot.RP.dmc(acc.df, xaxis="S") + ylab("accuracy") + ylim(c(0.6, 0.7))
 
 # Similarly, if you wish to examine only the response times of correct responses. 
-correctonly.df <- lnr.group.gglist[[3]]
+correctonly.df <- lnr.group.gglist[["RTs"]]
 correctonly.df<- correctonly.df[(correctonly.df$S=="s1" &
                                    correctonly.df$R=="r1")| 
                                   (correctonly.df$S=="s2" & correctonly.df$R=="r2"),]
@@ -211,7 +212,7 @@ ggplot.RT.dmc(correctonly.df, xaxis="S") + ylab("Correct RT")
 
 # The user may also wish to modify the labels of the panels, a
 # quick way to do this is to modify the factor labels in the data frame e.g.,:
-df.newlabels <- lnr.group.gglist[[3]]
+df.newlabels <- lnr.group.gglist[["RTs"]]
 levels(df.newlabels$S)<- c("Stimulus One", "Stimulus Two")
 ggplot.RT.dmc(df.newlabels)
 
@@ -223,15 +224,15 @@ ggplot.RT.dmc(lnr.group.ppredicts) +
 
 # One way to change the order in which plots are presented is to change the 
 # order in the data frame. 
-df.neworder <- lnr.group.gglist[[3]]
+df.neworder <- lnr.group.gglist[["RTs"]]
 df.neworder$S <- factor(df.neworder$S, levels= c("s2", "s1"))
 ggplot.RT.dmc(df.neworder)
 
 # The gglist attribute also has the mean RT and the sd of RT - elements
 # [[3]] and [[4]]. They will work with the ggplot.RT.dmc
 # function with do.quantiles=FALSE
-ggplot.RT.dmc(lnr.group.gglist[[4]], do.quantiles=FALSE) +ylab("Mean RT")
-ggplot.RT.dmc(lnr.group.gglist[[5]], do.quantiles=FALSE) +ylab("SD RT")
+ggplot.RT.dmc(lnr.group.gglist[["MeanRTs"]], do.quantiles=FALSE) +ylab("Mean RT")
+ggplot.RT.dmc(lnr.group.gglist[["SDRTs"]], do.quantiles=FALSE) +ylab("SD RT")
 
 # The user may wish to aggregate the data at different 
 # levels to the default. 
@@ -257,8 +258,8 @@ data <- do.call(rbind, data)
 
 noS <- get.fitgglist.dmc(sim, data, factors=NULL, noR=F)
 
-ggplot.RP.dmc(noS[[1]]) 
-ggplot.RT.dmc(noS[[3]]) 
+ggplot.RP.dmc(noS[["pps"]]) 
+ggplot.RT.dmc(noS[["RTs"]]) 
 
 # It is also possible to drop the "R" argument, corresponding to the observed
 # response that participants made. In other words, to aggregate the observed RT
@@ -269,7 +270,7 @@ noRs <- get.fitgglist.dmc(sim, data, noR=TRUE)
 # Dropping the "R" argument will cause the get.fitgglist.dmc function to get 
 # response accuracy rather than "response proportion" by default. 
 
-ggplot.RP.dmc(noRs[[1]])
+ggplot.RP.dmc(noRs[["pps"]])
 
 # Response accuacy is scored by checking whether the levels of S and R are equal, 
 # but this will not work in some cases. However, the user is able to specify any 
@@ -290,7 +291,7 @@ acc.fun=function(x){(x$WF=="nonword" & x$R=="never") |
 # The convenience function gplot.RA.dmc drops the proportion error, which is 
 # redundant, and adds a better ylab. 
 
-ggplot.RA.dmc(noRs[[1]]) 
+ggplot.RA.dmc(noRs[["pps"]]) 
 
 
 # The noR argument drops out the response argument for RTs (i.e., aggregates 
@@ -299,7 +300,7 @@ ggplot.RA.dmc(noRs[[1]])
 # By default ggplot.RT.dmc uses the response factor 'R' as the xaxis. The 
 # default will casue an error here as there is no reponse factor in noRs. 
 # Instead we use the S(timulus) factor.
-ggplot.RT.dmc(noRs[[3]], xaxis='S')
+ggplot.RT.dmc(noRs[["RTs"]], xaxis='S')
 
 
 
