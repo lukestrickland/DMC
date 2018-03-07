@@ -7,7 +7,7 @@ install.packages("gridExtra")
 ### Lesson 5.5:  Using ggplot2 with DMC samples.
 
 rm(list=ls())
-your_directory_here <- "~/code/Strickland_DMC"
+setwd("D:/Dropbox/Dropbox/code/DMC/Personal_DMC")
 setwd(your_directory_here)
 source("dmc/dmc.R")
 require(gridExtra)
@@ -371,3 +371,4 @@ lnr.group.list <- get.fitgglist.dmc(sim,data,
                                             custom.name = "covar")
 
 ggplot.RT.dmc(lnr.group.list[["covar"]], do.quantiles=F)
+

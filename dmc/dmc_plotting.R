@@ -719,10 +719,13 @@ theme_simple <- function (base_size = 12, base_family = "") {
 
 # theme_set(theme_simple())
 
-###NOTE: Changed post.median back to mean to accord w. old way of doing it
 
-# sim=sim; data=data; factors=NULL; CI= c(0.025, 0.975)
+# sim=sim; data=data; 
+# factors=c(); CI= c(0.025, 0.975)
 # quantiles.to.get = c(0.1, 0.5, 0.9); noR = FALSE
+# acc.fun=function(x){as.numeric(x$S)==as.numeric(x$R)};
+# correct.only=FALSE;error.only=FALSE; custom.RTfun=NA; custom.name ="NA";
+# hPP=lnr.sim
 
 get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,  
                                quantiles.to.get = c(0.1, 0.5, 0.9), CI= c(0.025, 0.975),
@@ -772,8 +775,11 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
     # case we can just sum all the Rs instead.
     if(is.null(factors)) np <- sum(n) else 
       np <- rep(apply(n,1:length(factors),sum),times=length(levels(R)))
-    
-    if (only.na) (n-nok)/np else if (include.na) n/np else nok/np
+    if (only.na) out<- (n-nok)/np else if (include.na) out <- n/np else
+      out <- nok/np
+    #make sure 's' dimension is named 's' just in case it lost it in previous step  
+    if (any(factors %in% 's')) names(dimnames(out))[which(factors=='s')] <- 's'
+    out
   }  
   
   #Takes the output of tapplies to sim (array with reps), as well as vector
@@ -797,7 +803,7 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
     #and turn it back into a column
     if (dim(summary.df)[2]==4) {
       summary.df <- cbind.data.frame(row.names(summary.df),summary.df)
-      names(summary.df)[1] <- tapplyvec[2]  
+      names(summary.df)[1] <- tapplyvec[!tapplyvec %in% c("s", "reps")] 
     }
     summary.df
   }
@@ -845,15 +851,17 @@ get.fitgglist.dmc <- function (sim, data, factors=NA, noR = FALSE,
     scored <- FALSE
   }
   
-  
   if ( is.null(factors) & noR ) stop ("Cannot plot when no factors and noR TRUE")
-  if ( !is.null(factors) && is.na(factors[1]) ) 
+  if ( !is.null(factors) && is.na(factors[1]) ) {
+  #when hPP is true this will automatically add the 's' fac which we need for 
+    #that way of averaging
     factors <-  colnames(sim) [!colnames (sim) %in% c("reps", "R", "RT","R2")] 
+  #if the user supplies factors manually but wants hPP way of av then tac 's'' on
+  } else if (!is.na(hPP[1])) factors <- c("s", factors)
   if (!noR) {
     C.sim <- sim[,"R"]
     C.data <- data[,"R"]
   } 
-  
   ####Here define a 'tapplyvec', which will decide the factors to use in 
   #the data summaries. 
   # Also get 'len' which is the length of factor vector + "reps" (posterior simulations)
