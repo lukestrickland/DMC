@@ -1805,13 +1805,14 @@ fast.avgsamples <- function (hsamples) {
   out
 }
 
+
 get.msds <- function(samples) {
   avg_samples <- fast.avgsamples(samples)
   M <- apply(avg_samples, 2, mean)
   SD <- apply(avg_samples, 2, sd)
   out <- cbind(M,SD)
   colnames(out) <- c("M", "SD")
-  out
+  data.frame(out)
 }
 
 

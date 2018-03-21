@@ -1,3 +1,4 @@
 *.RData
 *.Rhistory
 Testing.R
+fit.R
