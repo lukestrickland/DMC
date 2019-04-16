@@ -38,14 +38,15 @@ transform.dmc <- function(par.df)
   par.df["NR",c("mu","sigma","tau")] <- par.df["NR",c("muS","sigmaS","tauS")]
   par.df$tf <- pnorm(par.df$tf)
   par.df$gf <- pnorm(par.df$gf)  
-  par.df[,c("mu","sigma","tau","muS","sigmaS","tauS","tf","gf")]
+  par.df[,c("mu","sigma","tau","muS","sigmaS","tauS","tf","gf","N")]
 }
 
 random.dmc<- function(n,p.df,model,SSD=Inf,staircase=NA,TRIALS=NULL)
 {
-  rexgss(n,mu=p.df$mu,sigma=p.df$sigma,tau=p.df$tau,
-         tf=p.df$tf[1],gf=p.df$gf[1],
-         SSD,staircase)  
+  rexgss(n,mu=p.df$mu[1:p.df$N[1]],
+           sigma=p.df$sigma[1:p.df$N[1]],
+           tau=p.df$tau[1:p.df$N[1]],
+           tf=p.df$tf[1],gf=p.df$gf[1],SSD,staircase)  
 }
 
 
@@ -59,9 +60,9 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10)
     p.df <- p.df.dmc(p.vector,i,attributes(data)$model,n1order=TRUE)
     likelihood[ attr(data,"cell.index")[[i]] ] <-
       n1PDF.exgss(dt=data$RT[attr(data,"cell.index")[[i]]],
-                  tau=p.df$tau, 
-                  mu=p.df$mu,
-                  sigma=p.df$sigma,
+                  tau=p.df$tau[1:p.df$N[1]], 
+                  mu=p.df$mu[1:p.df$N[1]],
+                  sigma=p.df$sigma[1:p.df$N[1]],
                   # Trigger failure
                   tf=p.df$tf[1],
                   gf=p.df$gf[1], 

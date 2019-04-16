@@ -5,6 +5,7 @@
 # User edited functions for the DMC (Dynamic Models of Choice)
 #    Source in all appliciatons
 
+
 # This function transfroms parameters to a form suitbale for the model 
 #   being used. Called inside of get.par.mat. 
 # "par.df" is a data frame of parameters types , some of which may need to be 
@@ -14,13 +15,7 @@
 transform.dmc <- function(par.df) 
 {
 
-  # User supplied tranforms go here
-#   par.df$b <- par.df$B+par.df$A
-
-#   # COMMENT OUT this check for speed after debugging
-#   if ( !all(type.par.names %in% names(par.df)) )
-#     stop("Trasform has not created parameter(s) required by the model.")
-  
+  par.df$d <- par.df$d*par.df$t0  # proportional to t0, bounded -1 to 1
   par.df[,c("a","v","t0","z","d","sz","sv","st0")]
 }
 
@@ -38,13 +33,11 @@ likelihood.dmc <- function(p.vector,data,ok.types=NULL,min.like=1e-10,
 # usually in range 2 (fast but less accruate) to 3 (slower but more accurate)
 {  
   bad <- function(p) 
-    # Stops ddiffusion crashing if given bad values, may need to add extra protection
-    # for v and upper bounds for a, sv and t0.
+    # Stops ddiffusion crashing if given bad values.
   {
     (p$a[1]<0)      | (p$z[1] <1e-6) | (p$z[1] >.999999) | (p$t0[1]<1e-6)  | 
       (p$sz[1]<0) | (p$st0[1]<0)    | (p$sv[1]<0) |
-      (p$sz[1]>1.999999*min(c(p$z[1],1-p$z[1]))) |
-      (p$t0[1]-p$st0[1]/2<0)  
+      (p$sz[1]>1.999999*min(c(p$z[1],1-p$z[1])))
   }
   
   bound <- rep("lower",dim(attr(data,"model"))[1])

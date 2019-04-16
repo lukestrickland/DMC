@@ -78,10 +78,10 @@ phi.as.mcmc.list <- function(hyper,start=1,end=NA,split=FALSE,thin=1)
   for (i in 1:n.chains) {
     tmp1 <- t(hyper$phi[[1]][i,,indx[is.in]])
     dimnames(tmp1)[[2]] <- paste(dimnames(tmp1)[[2]],"h1",sep=".")
-    tmp1 <- tmp1[,ok1]
+    tmp1 <- tmp1[,ok1,drop=FALSE]
     tmp2 <- t(hyper$phi[[2]][i,,indx[is.in]])
     dimnames(tmp2)[[2]] <- paste(dimnames(tmp2)[[2]],"h2",sep=".")
-    tmp2 <- tmp2[,ok2]
+    tmp2 <- tmp2[,ok2,drop=FALSE]
     # Remove cases with !has.sigma
     tmp2 <- tmp2[,!apply(tmp2,2,function(x){all(is.na(x))})]
     lst[[i]] <- mcmc(cbind(tmp1,tmp2),thin=thin)
@@ -90,10 +90,10 @@ phi.as.mcmc.list <- function(hyper,start=1,end=NA,split=FALSE,thin=1)
     for (i in 1:n.chains) {
       tmp1 <- t(hyper$phi[[1]][i,,indx[not.is.in]])
       dimnames(tmp1)[[2]] <- paste(dimnames(tmp1)[[2]],"h1",sep=".")
-      tmp1 <- tmp1[,ok1]
+      tmp1 <- tmp1[,ok1,drop=FALSE]
       tmp2 <- t(hyper$phi[[2]][i,,indx[not.is.in]])
       dimnames(tmp2)[[2]] <- paste(dimnames(tmp2)[[2]],"h2",sep=".")
-      tmp2 <- tmp2[,ok2]
+      tmp2 <- tmp2[,ok2,drop=FALSE]
       # Remove cases with !has.sigma
       tmp2 <- tmp2[,!apply(tmp2,2,function(x){all(is.na(x))})]
       lst[[i+n.chains]] <- mcmc(cbind(tmp1,tmp2),thin=thin)
@@ -355,12 +355,14 @@ check.recovery.dmc <- function(samples,p.vector=NULL,digits=2,verbose=TRUE)
                '97.5% Estimate'=hi)
   if (!is.null(p.vector)) out <- rbind('True'=p.vector[p.names],out,
     'Median-True'= est- p.vector[p.names])
+  attr(out,"ci50") <- qs[,c("25%","75%")]
   if (verbose) print(round(out,digits))
   invisible(out)
 }
 
 
-h.check.recovery.dmc <- function(samples,ps=NULL,hyper=FALSE,verbose=TRUE,digits=3,ptype=1) 
+h.check.recovery.dmc <- function(samples,ps=NULL,hyper=FALSE,verbose=TRUE,
+  digits=3,ptype=1,do.coverage=FALSE) 
 {
   if (hyper) {
     samples <- list(theta=attr(samples,"hyper")$phi[[ptype]])
@@ -371,17 +373,28 @@ h.check.recovery.dmc <- function(samples,ps=NULL,hyper=FALSE,verbose=TRUE,digits
     for (i in 1:length(samples)) {
       if (is.matrix(ps)) psi <- ps[i,] else psi <- ps
       out[[i]] <- check.recovery.dmc(samples[[i]],psi,verbose=FALSE)
-      if (i==1) av <- out[[i]] else av <- out[[i]] + av
+      if (i==1) {
+        av <- out[[i]]
+        attr(av,"ci50") <- NULL
+      } else av <- out[[i]] + av
     }
-    coverage <- 100*apply(do.call(rbind,lapply(out,function(x){
-      apply(x,2,function(y){y[2]<y[1] & y[4]>y[1]})})),2,sum)
-    out <- rbind(av,Coverage=coverage)/length(samples)
+    if (do.coverage) {
+      coverage <- 100*apply(do.call(rbind,lapply(out,function(x){
+        apply(x,2,function(y){y[2]<y[1] & y[4]>y[1]})})),2,sum)
+      coverage50 <- 100*apply(do.call(rbind,lapply(out,function(x){
+        x[2,] <- attr(x,"ci50")[,1]
+        x[4,] <- attr(x,"ci50")[,2]
+        apply(x,2,function(y){y[2]<y[1] & y[4]>y[1]})
+      })),2,sum)
+      out <- rbind(av,Coverage50=coverage50,Coverage95=coverage)/length(samples)
+    } else out <- av/length(samples)
     if (verbose) print(round(out,digits=digits))
   }
   invisible(out)  
 }
 
-### Priors, likelihoods and model selection ----
+
+### Model selection ----
 
 pll.dmc <- function(samples,hyper=FALSE,start=1,end=NA,prior=FALSE,like=FALSE,subject=NA)
   # extracts posterior log-likelihoods
@@ -513,9 +526,11 @@ h.IC.dmc <- function(hsamples,DIC=FALSE,fast=TRUE,use.pd=NA)
   for (i in 1:length(ds)) if (DIC)  
     ICs[i] <- ds[[i]]$meanD+pd[i] else 
     ICs[i] <- ds[[i]]$meanD+2*pd[i]
-  if (DIC) cat("Summed DIC\n") else cat("Summed BPIC\n")
-  print(sum(ICs))
-  invisible(ICs)
+  Dmean <- unlist(lapply(ds,function(x){x$Dmean}))
+  if (DIC) cat("Summed Minimum Deviance and DIC\n") else 
+           cat("Summed Minimum Deviance and BPIC\n")
+  print(c(sum(Dmean),sum(ICs)))
+  invisible(cbind(MinD=Dmean,IC=ICs))
 }
 
 
@@ -730,6 +745,66 @@ loocompare.dmc <- function(loo1,loo2=NULL,...)
     print(t(matrix(c(d,w),nrow=length(d),
       dimnames=list(mnams,c("IC-min","w")))),...)
   }
+}
+
+
+#### Priors from posteriors ----
+
+make.tnorm.prior <- function(p.prior,theta,scale.sd=1,hpar=1) 
+  # Takes a samples array and creates fitting truncted normal priors.
+
+{
+
+  est.tnorm <- function(dat,lower=0,upper=Inf) 
+    # Fit to truncated normal.  
+  {
+    if (any(dat<lower | dat>upper)) stop("Lower and/or upper do not match data.")
+    obj <- function(par,dat,low,up) { 
+      out <- suppressWarnings(-sum(dtnorm(
+        dat,mean=par[1],sd=par[2],lower=low,upper=up,log=TRUE)))
+      if (is.na(out)) out <- -Inf
+      pmax(out,log(1e-10))  
+    }
+    par  <- c(mean=mean(dat),sd=sd(dat))
+    if (lower==-Inf & upper==Inf) par else
+      optim(par,obj,dat=dat,method="L-BFGS-B",low=lower,up=upper)$par
+  }
+
+  p.names <- names(p.prior)
+  if ( is.null(dim(theta)) ) 
+    if ( any(names(theta)=="theta") ) theta <- theta$theta else {
+      theta <- attr(theta,"hyper")$phi[[hpar]]
+    }
+  if ( is.null(theta) || !all(sort(dimnames(theta)[[2]])==sort(p.names)) ) 
+    stop("theta must be a parameter array or samples object matching p.prior.")
+  scale <- rep(scale.sd,length.out=length(p.names))
+  names(scale) <- p.names
+  if (!all(sort(p.names)==sort(names(p.prior))))
+    stop("p.prior does not match parameters")
+  for (i in p.names) {
+    lower <- p.prior[[i]]$lower; if (is.null(lower)) lower <- -Inf
+    upper <- p.prior[[i]]$upper; if (is.null(upper)) upper <- Inf
+    pars <- est.tnorm(as.vector(theta[,i,]),lower=lower,upper=upper)
+    p.prior[[i]] <- 
+      list(mean=pars[1],sd=pars[2]*scale[i],lower=lower,upper=upper,log=TRUE)
+    attr(p.prior[[i]],"dist") <- "tnorm"
+    attr(p.prior[[i]],"untrans") <- "identity"
+  }
+  p.prior
+}
+
+get.ppars <- function(p.prior) {
+  out <- data.frame(do.call(rbind,lapply(p.prior,function(x){c(x$mean,x$sd)})))
+  colnames(out) <- c("mean", "sd")
+  out
+}
+
+assign.ppars <- function(p.prior,ppars) {
+  for (i in names(p.prior)) {
+    p.prior[[i]]$mean <- ppars[i,"mean"]
+    p.prior[[i]]$sd <- ppars[i,"sd"]
+  }
+  p.prior
 }
 
 
@@ -957,14 +1032,12 @@ compare.r <- function(r1,r2,plot=FALSE,add=FALSE,n=1,...) {
 }
 
 
-#### Parameter tests ----
-
-# fun=NULL;pnames=NULL;pretty=NULL; hpar=1
+# fun=NULL;pnames=NULL;pretty=NULL; hpar=1; hyper=FALSE
 # show.plot=FALSE;main="";xlab="";show.legend=TRUE;lpos="topleft";xlim=NULL
 # show.table=TRUE;lo.p=.025;hi.p=.975;digits=3;line0=TRUE
-compare.p <- function(hsamples,fun=NULL,pnames=NULL,pretty=NULL,hyper=FALSE,hpar=1,
+compare.p <- function(hsamples,fun=NULL,pnames=NULL,pretty=c("1","2"),hyper=FALSE,hpar=1,
   show.plot=FALSE,main="",xlab="",show.legend=TRUE,lpos="topleft",xlim=NULL,
-  show.table=TRUE,lo.p=.025,hi.p=.975,digits=3,line0=TRUE,...)
+  show.table=TRUE,lo.p=.025,hi.p=.975,digits=3,line0=TRUE,verbose=TRUE,...)
   # Plots and tests difference distribution on parameters calcualted by fun then
   # averaged over subject.
   # fun must return each element of the contrast and then the difference (i.e,. a 3 vector).
@@ -973,13 +1046,15 @@ compare.p <- function(hsamples,fun=NULL,pnames=NULL,pretty=NULL,hyper=FALSE,hpar
 {
   if (is.null(fun) & is.null(pnames))
     stop("Must define one of fun and pnames arguments")
-  if (is.null(fun)) {
-    if (length(pnames)!=2) stop("pnames must have length 2")
-    if ( !all(pnames %in% dimnames(hsamples[[1]]$theta)[[2]]) )
-      stop("pnames must correspond to names of parameters in hsamples")
-    fun <- function(x){c(x[pnames],-diff(x[c(pnames)]))}
+  if ( is.null(fun) ) {
+      if ( !all(pnames %in% dimnames(hsamples[[1]]$theta)[[2]]) )
+        stop("pnames must correspond to names of parameters in hsamples")
+      if (length(pnames)==1) fun <- function(x){x[pnames]} else
+      if (length(pnames)==2) 
+        fun <- function(x){c(x[pnames],-diff(x[c(pnames)]))} else
+      stop("pnames must have length 1 or 2")
   }
-  if (hyper) {
+  if ( hyper ) {
     hsamples <- attr(hsamples,"hyper")
     hsamples$theta <- hsamples$phi[[hpar]]
     av <- apply(matrix(as.vector(aperm(hsamples$theta,c(1,3,2))),ncol=dim(hsamples$theta)[2],
@@ -991,13 +1066,85 @@ compare.p <- function(hsamples,fun=NULL,pnames=NULL,pretty=NULL,hyper=FALSE,hpar
         dimnames=list(NULL,dimnames(x$theta)[[2]])),1,fun,...)
     })
     n <- dim(cmats[[1]])[1]
-    av <- apply(
-      array(do.call(rbind,cmats),dim=c(n,length(hsamples),dim(cmats[[1]])[2])),
-      c(1,3),mean)
+    if ( is.null(n) ) av <- apply(do.call(rbind,cmats),2,mean) else
+      av <- apply(
+        array(do.call(rbind,cmats),dim=c(n,length(hsamples),dim(cmats[[1]])[2])),
+        c(1,3),mean)
   }
+  if ( is.null(n) ) av else {
+    if (!is.null(pretty)) {
+      if (length(pretty) != (n-1) )
+        stop(paste("pretty must be length",dim(cmats[[1]])[1]-1))
+      dn <- c(pretty,"contrast") 
+    } else {
+      dn <- dimnames(av)[[1]]
+      dn[length(dn)] <- c("contrast")
+    }
+    dimnames(av) <- list(dn,NULL)
+    tab <- apply(av,1,quantile,probs=c(lo.p,.5,hi.p))
+    if (verbose & show.table)
+      print(round(tab,digits=digits))
+    p.gt.0 <- mean(av[n,]>0)
+    if (verbose) print(round(c(p.gt.0=p.gt.0),digits=digits))
+    if (show.plot) {
+      plot(density(av[n,]),main=main,xlab=xlab,xlim=xlim)
+      if (line0) abline(v=0,lty=2)
+      if (show.legend) legend(lpos,
+        paste(c(dimnames(tab)[[2]],"p>0: "),
+          round(c(tab[2,],p.gt.0),digits),sep=" = "),bty="n")
+    }
+    attr(av,"table") <- tab
+    attr(av,"p.gt.0") <- p.gt.0
+    invisible(t(av))
+  }
+}
+
+ 
+# between.fun=NULL;between.names=NULL;within.pnames=NULL;within.fun=NULL
+# hyper=TRUE;hpar=1;pretty=NULL; show.plot=TRUE;main=""
+# 
+# within.pnames="t0"
+# 
+# fits=list(A1=hA1,A2=hA2)
+# between.names=c("A1","A2")
+# within.fun=function(x){mean(x[c("B.new","B.old")])}
+
+compare.ps <- function(fits,between.fun=NULL,within.pnames=NULL,within.fun=NULL,
+  hyper=TRUE,hpar=1,pretty=NULL,show.plot=TRUE,main="",xlab="",show.legend=TRUE,lpos="topleft",xlim=NULL,
+  show.table=TRUE,lo.p=.025,hi.p=.975,digits=3,line0=TRUE,...)
+  # Tests differences in parameters among two or more fits  
+{
+  if (length(fits)!=2) stop("Fits list must be of length two.")
+  if (!is.null(within.pnames) ){
+    if (length(within.pnames) != 1)
+      stop("If specified within.pnames can only be length 1")
+    if (!(within.pnames %in% fits[[1]][[1]]$p.names) | 
+        !(within.pnames %in% fits[[2]][[1]]$p.names) )
+      stop("within.pnames argument not in fits object parameter names.")
+  } 
   
-  if (!is.null(pretty)) {
-    if (length(pretty) != (n-1) )
+  if ( is.null(between.fun) ) {
+    if ( is.null(names(fits)) ) 
+      between.names <- c("G1","G2") else
+      between.names <- names(fits)
+  } 
+  avs <- do.call(rbind,lapply(fits,compare.p,fun=within.fun,pnames=within.pnames,
+         hyper=hyper,hpar=hpar))
+  if ( is.null(between.fun) ) {
+    if (is.null(names(fits)))
+      stop("When using between.names fits must be named")
+    if ( !all(between.names %in% names(fits)) )
+      stop("between.names must correspond to names of fits")
+    if (length(between.names)!=2) 
+      stop("between.names must have length 2")
+    fun <- function(x){c(x[between.names],-diff(x[c(between.names)]))}
+    dimnames(avs)[[1]] <- names(fits)
+  } else fun <- between.fun
+  
+  av <- apply(avs,2,fun)  
+  n <- dim(av)[1]
+  if ( !is.null(pretty) ) {
+    if ( length(pretty) != (n-1) )
       stop(paste("pretty must be length",dim(cmats[[1]])[1]-1))
     dn <- c(pretty,"contrast") 
   } else {
@@ -1021,3 +1168,28 @@ compare.p <- function(hsamples,fun=NULL,pnames=NULL,pretty=NULL,hyper=FALSE,hpar
   attr(av,"p.gt.0") <- p.gt.0
   invisible(t(av))
 }
+
+subject.average.ci <- function(hsamples,fun=NULL,pnames=NULL,lo.p=.025,hi.p=.975,pretty=NULL,...)
+{
+  if (is.null(fun) & is.null(pnames))
+    pnames <- dimnames(hsamples[[1]]$theta)[[2]]
+  if (is.null(pretty)) pretty <- pnames
+  if ( is.null(fun) ) {
+      if ( !all(pnames %in% dimnames(hsamples[[1]]$theta)[[2]]) )
+        stop("pnames must correspond to names of parameters in hsamples")
+      fun <- function(x){x[pnames]} 
+  }
+  cmats <- lapply(hsamples,function(x){
+    apply(matrix(as.vector(aperm(x$theta,c(1,3,2))),ncol=dim(x$theta)[2],
+      dimnames=list(NULL,dimnames(x$theta)[[2]])),1,fun,...)
+  })
+  n <- dim(cmats[[1]])[1]
+  av <- apply(
+    array(do.call(rbind,cmats),dim=c(n,length(hsamples),dim(cmats[[1]])[2])),
+    c(1,3),mean)
+  dimnames(av)[[1]] <- pretty
+  apply(av,1,quantile,probs=c(lo.p,.5,hi.p))
+}
+
+
+

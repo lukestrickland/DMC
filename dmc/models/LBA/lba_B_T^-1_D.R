@@ -10,9 +10,9 @@
 
 # source("rtdists_extras.R")
 
-# This function transfroms parameters to a form suitbale for the model 
+# This function transforms parameters to a form suitbale for the model 
 #   being used.
-# "par.df" is a data frame of parameters types , some of which may need to be 
+# "par.df" is a data frame of parameter types , some of which may need to be 
 #   transformed, or new columns created, so that the full set of internal 
 #   parameter types, specified in "type.par.names", required by the type of 
 #   evidence accumulation model being used ("norm" etc.) is present.
@@ -22,9 +22,9 @@
 # A 1 1 0.2    1   0  1  .1   1112
 # B 1 2 0.2    1   0  1  .1   1112
 #
-# Note that row names are responses, and mean_v is the paraemter to be 
+# Note that row names are responses, and mean_v is the parameter to be 
 # mapped as a function of the cell coordinates in mean_v, which are assumed to
-# index a look table for A.Time (1000s), A.distance (100s), B.time (10s)
+# index a look-up table for A.Time (1000s), A.distance (100s), B.time (10s)
 # and B.distance (units). Note must use the response names A,B for this to work.
 
 # Pass in lookup values as constants

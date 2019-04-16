@@ -3,7 +3,6 @@
 #    and hierarchical model-specific functions)
 #    Usually user does not need to edit
 
-
 ### Simulate data
 
 # SSD=Inf; staircase=NA
@@ -105,7 +104,7 @@ h.simulate.dmc <- function(model,ps=NA,ns=1,n=2,
     simulate.dmc(ps[1,],modeli,n[1,],SSD=SSD[datr],staircase = staircase))  
   if (ns>1) for (i in 2:ns)
   {
-    if (subject.models) modeli <- model[[1]] else modeli <- model
+    if (subject.models) modeli <- model[[i]] else modeli <- model
     datr <- (ndatai[i]+1):(ndatai[i+1])
     data <- rbind(data,cbind(s=rep(i,length(datr)),
       simulate.dmc(ps[i,],modeli,n[i,],SSD=SSD[datr],staircase = staircase)))  
@@ -223,21 +222,22 @@ make.theta1 <- function(fsamples)
 
 
 
-# nmc = 100; data=ctl.model; thin=1;hstart.prior=hstart.ctl;theta1=theta1.ctl
-# p.prior=p.prior.sigma.only
-# samples=NULL
-# phi1=NULL;start.prior=NULL
-# add=FALSE;remove=NA;rp=.001
+# p.prior=NULL;data=NULL;pp.prior=NULL; add=FALSE;remove=NA;rp=.001
+# samples=NULL;thin=NA;theta1=NULL;phi1=NULL;start.prior=NULL;hstart.prior=NULL
+# replace.bad.chains=NULL
+#                           
+# 
+# nmc=100;p.prior=p.priorV;pp.prior=pp.priorVVtight;samples=hVVl
+# 
 # n.chains=ifelse(is.null(p.prior),
 #     length(attr(attr(data[[1]],"model"),"p.vector"))*3,
 #     length(p.prior)*3)
-
 
 h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
                           samples=NULL,thin=NA,
                           theta1=NULL,phi1=NULL,
                           start.prior=NULL,hstart.prior=NULL,
-                          add=FALSE,remove=NA,rp=.001,
+                          add=FALSE,remove=NA,replace.bad.chains=NULL,rp=.001,
                           n.chains=ifelse(is.null(p.prior),
                             length(attr(attr(data[[1]],"model"),"p.vector"))*3,
                             length(p.prior)*3)                       
@@ -246,12 +246,13 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
 {
   
   do.samples.dmc <- function(s,nmc,p.prior,data,samples,theta1,start.prior=NULL,
-                             add,rp,n.chains,thin,remove)
+                             add,rp,n.chains,thin,remove,replace.bad.chains)
   {
     if ( !add & is.null(samples) ) cat(".")
     samples.dmc(nmc=nmc,p.prior=p.prior,data=data[[s]],start.prior=start.prior,
       samples=samples[[s]],theta1=theta1[[s]][1:n.chains,names(p.prior)],add=add,
-      rp=rp,verbose=FALSE,n.chains=n.chains,thin=thin,remove=remove)
+      rp=rp,verbose=FALSE,n.chains=n.chains,thin=thin,remove=remove,
+      replace.bad.chains=replace.bad.chains[[s]])
   }
   
   if ( !is.null(data) && is.data.frame(data) )
@@ -262,17 +263,19 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
   {
     n.subjects <- length(samples)
     s.names <- names(samples)
+    if (!is.null(replace.bad.chains) && length(replace.bad.chains)!=n.subjects)
+      stop("replace.bad.chains must be a list of the same length as samples")
   } else {
     n.subjects <- length(data)
     s.names <- names(data)
   }
-  
   if ( is.list(theta1) && !all(sort(names(theta1))==sort(s.names)) )
     stop("Names of theta1 list do not match subject names in data")
     
   if ( !is.null(samples) ) {
-    pp.prior <- attr(samples,"hyper")$pp.prior
-    p.prior <- samples[[1]]$p.prior
+    if (!is.null(pp.prior) & add) stop("Cannot change pp.prior when adding!")
+    if ( is.null(pp.prior) ) pp.prior <- attr(samples,"hyper")$pp.prior
+    if ( is.null(p.prior)  )  p.prior <- samples[[1]]$p.prior
     if (is.na(thin)) thin <- samples[[1]]$thin
   }
   
@@ -282,7 +285,7 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
       cat("Generating start points for each subject: ")
     out <- lapply(1:n.subjects,do.samples.dmc,nmc=nmc,p.prior=p.prior,add=add,
       rp=rp,start.prior=start.prior,data=data,samples=samples,theta1=theta1,
-      n.chains=n.chains,thin=thin,remove=remove)
+      n.chains=n.chains,thin=thin,remove=remove,replace.bad.chains=replace.bad.chains)
     names(out) <- s.names
     if(!add & is.null(samples)) cat("\n")    
   } else {                  # hierarchical model
@@ -352,7 +355,7 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
       cat("Generating samples objects for each subject: ")
       out <- lapply(1:n.subjects,do.samples.dmc,nmc=nmc,p.prior=p.prior,
                data=data,samples=samples,add=add,rp=rp,n.chains=n.chains,
-               theta1=theta1,thin=thin,remove=remove)
+               theta1=theta1,thin=thin,remove=remove,replace.bad.chains=replace.bad.chains)
       names(out) <- s.names
       
       # Fill in hyper-likelihoods
@@ -403,7 +406,7 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
 
       out <- lapply(1:n.subjects,do.samples.dmc,nmc=nmc,data=data,
         samples=samples,theta1=theta1,p.prior=p.prior,add=add,rp=rp,
-        n.chains=n.chains,thin=thin,remove=remove)
+        n.chains=n.chains,thin=thin,remove=remove,replace.bad.chains=replace.bad.chains)
       names(out) <- s.names
       hyper <- attr(samples,"hyper")
       if ( add ) { # add on
@@ -433,8 +436,16 @@ h.samples.dmc <- function(nmc,p.prior=NULL,data=NULL,pp.prior=NULL,
         hyper$phi[[2]][,,1] <- phi1[[2]]
         hyper$h_summed_log_prior <- array(-Inf,c(nmc,hyper$n.chains)) 
         hyper$h_log_likelihoods <- array(-Inf,c(nmc,hyper$n.chains)) 
-        hyper$h_summed_log_prior[1,] <- h_summed_log_prior1
         hyper$h_log_likelihoods[1,] <- h_log_likelihoods1
+        # Recompute prior in case new pp.prior was provided.
+        for (i in 1:n.chains) {
+          hyper$h_summed_log_prior[1,i] <- 
+            sum(log.prior.dmc(hyper$phi[[1]][i,,1],pp.prior[[1]])) + 
+            sum(log.prior.dmc(hyper$phi[[2]][i,has.sigma,1],pp.prior[[2]]))
+        }
+        if (any(is.na(hyper$h_summed_log_prior[1,i])))
+            stop("New pp.prior not compatible with old samples.")
+        hyper$pp.prior <- pp.prior
         hyper$nmc <- nmc
         hyper$start <- 1
         hyper$thin <- thin
@@ -627,7 +638,15 @@ h.migrate <- function(use.phi,use.logprior,use.loglike,p.prior,ps,rp,pp.prior,
     
     propset[i] <- propset.logprior[i] + propset.loglike[i] 
     propw[i] <- propset[i]
+    
     currentset[i] <- use.logprior[lnum2[i]] + use.loglike[lnum2[i]] 
+    # yishin calcuatle new log likelihood!
+    # # Update use.loglike for new ps
+    # phi <- list(use.phi[[1]][k,],use.phi[[2]][k,])
+    # use.loglike[k] <- sum(h.log.likelihood.dmc(ps=ps[k.theta,,], # has.hyper
+    #   pp=list(phi[[1]][has.sigma],phi[[2]][has.sigma]),p.prior=p.prior[has.hyper]))
+
+  
 
   }
   currw <- currentset
@@ -1213,11 +1232,14 @@ h.run.dmc <- function(samples,cores=1,report=samples[[1]]$nmc,blocks=NA,
 ### Posterior predictive
 
 # n.post=100;probs=c(1:99)/100;bw="nrd0";save.simulation=FALSE;factors=NA
-# save.subject.posts=FALSE; ignore.R2=FALSE
-# probs.gglist =c(0.1, 0.5, 0.9);CI.gglist =c(0.025, 0.975)
+# save.subject.posts=FALSE; ignore.R2=FALSE; censor=c(NA,NA); gglist= FALSE
+# probs.gglist =c(0.1, 0.5, 0.9);CI.gglist =c(0.025, 0.975); cores=1
+# samples=hAhi1; gglist=TRUE
+
 h.post.predict.dmc <- function(samples,n.post=100,probs=c(1:99)/100,bw="nrd0",
-  save.simulation=FALSE,factors=NA,save.subject.posts=FALSE,cores=1,ignore.R2=FALSE,
-  probs.gglist =c(0.1, 0.5, 0.9), CI.gglist =c(0.025, 0.975))
+  save.simulation=FALSE,factors=NA,save.subject.posts=FALSE,cores=1,ignore.R2=FALSE, 
+  gglist= FALSE, probs.gglist =c(0.1, 0.5, 0.9), CI.gglist =c(0.025, 0.975),
+  censor=c(NA,NA))
   # apply post.predict to each subject
 {
   os <- get.os()
@@ -1231,28 +1253,34 @@ h.post.predict.dmc <- function(samples,n.post=100,probs=c(1:99)/100,bw="nrd0",
     sfLibrary(rtdists)
     sfExportAll()
     out <- sfLapply(samples,post.predict.dmc,n.post=n.post,probs=probs,bw=bw,
-                    factors=factors,save.simulation=save.simulation,
-                    save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2)
+                    factors=factors,save.simulation=save.simulation,gglist=TRUE,
+                    save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2,censor=censor)
       sfStop() 
   } else if (cores>1) {
     cat("No progress indication in multi-core\n")
     require(parallel, quietly=TRUE)
     out <- mclapply(samples,post.predict.dmc,n.post=n.post,probs=probs,bw=bw,
-                    factors=factors,save.simulation=save.simulation,
-                    save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2)
+                    factors=factors,save.simulation=save.simulation,gglist=TRUE,
+                    save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2,censor=censor)
   } else {
     out <- lapply(samples,post.predict.dmc,n.post=n.post,probs=probs,bw=bw,
-                  factors=factors,save.simulation=save.simulation,
-                  save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2)
+                  factors=factors,save.simulation=save.simulation,gglist=TRUE,
+                  save.simulation.as.attribute=TRUE,ignore.R2=ignore.R2,censor=censor)
   }
 
   if ( !save.simulation ) { # Get averages
     sim <- do.call(rbind,lapply(out,function(x){attr(x,"sim")}))
     if ( (any(names(samples[[1]]$data)=="R2")) && !ignore.R2 ) for (i in 1:length(samples)) {
+      levs <- outer(levels(samples[[i]]$data$R),sort(unique(samples[[i]]$data$R2)),"paste",sep="")
+      if (attributes(attributes(samples[[i]]$data)$model)$type=="normDK") 
+        levs[,2] <- rep("DK",dim(levs)[1])
+      levs <- sort(unique(as.vector(levs)))  
+      
       samples[[i]]$data$R <- 
         paste(as.character(samples[[i]]$data$R),as.character(samples[[i]]$data$R2),sep="") 
-      samples[[i]]$data$R[samples[[i]]$data$R2=="DK"] <- "DK"
-      samples[[i]]$data$R <- factor(samples[[i]]$data$R)
+      if (attributes(attributes(samples[[i]]$data)$model)$type=="normDK") 
+        samples[[i]]$data$R[samples[[i]]$data$R2=="2"] <- "DK"
+      samples[[i]]$data$R <- factor(samples[[i]]$data$R,levels=levs)
     }
     dat <- do.call(rbind,lapply(samples,function(x){x$data}))
     facs <- names(attr(attributes(samples[[1]]$data)$model,"factors"))
@@ -1277,12 +1305,13 @@ h.post.predict.dmc <- function(samples,n.post=100,probs=c(1:99)/100,bw="nrd0",
       if (!save.subject.posts) attr(x,"dpqs") <- NULL
       x
     })
-   attr(av, "gglist") <- get.fitgglist.dmc(sim,dat,factors=factors, noR=FALSE, 
+   if (gglist) attr(av, "gglist") <- get.fitgglist.dmc(sim,dat,factors=factors, noR=FALSE, 
      quantiles.to.get = probs.gglist, CI= CI.gglist)
    attr(out,"av") <- av
   }
   out
 }
+
 
 
 ### Automatic sampling
@@ -1569,6 +1598,23 @@ h.run.converge.dmc <- function(samples,nmc=NA,report=10,cores=1,gamma.mult=2.38,
 # 
 # cores=3;report=1;max.try=1
 
+# cores=1;report=10;p.migrate=.05;max.try=100
+# cut.unstuck=10;cut.flat.location=1/4;cut.flat.scale=Inf
+# cut.converge=1.1;split=TRUE;minN=NA;meanN=NA
+# verbose=FALSE;gamma.mult=2.38;subjects.to.cores=TRUE;slaveOutfile=NULL
+
+# cores=1;report=10;p.migrate=.05;max.try=100
+# cut.unstuck=10;cut.flat.location=1/4;cut.flat.scale=Inf
+# cut.converge=1.1;split=TRUE;minN=NA;meanN=NA
+# verbose=FALSE;gamma.mult=2.38;subjects.to.cores=TRUE;slaveOutfile=NULL
+# 
+# cores=3;report=1;max.try=1
+
+# cores=1;report=10;p.migrate=.05;max.try=100
+# cut.unstuck=10;cut.flat.location=1/4;cut.flat.scale=Inf
+# cut.converge=1.1;split=TRUE;minN=NA;meanN=NA
+# verbose=FALSE;gamma.mult=2.38;subjects.to.cores=TRUE;slaveOutfile=NULL
+
 h.RUN.dmc <- function(hsamples,
                       cores=1,
                       report=10,
@@ -1591,27 +1637,27 @@ h.RUN.dmc <- function(hsamples,
                       h.gamma.mult=NA,
                       subjects.to.cores=TRUE,
                       slaveOutfile=NULL)
-
+  
 {
-
+  
   if ( !is.null(hsamples$theta) ) {
-
+    
     ### single participant ###
-
+    
     stop("For a single subject use RUN.dmc")
-
+    
   } else if (any(names(attributes(hsamples))=="hyper")) {
-
+    
     ### multiple participants, truly hierarchical ###
-
+    
     # functions for checking
     h.StuckTests <- function(samples,
                              thorough=TRUE,
                              verbose=FALSE,
                              cut) {
-
-      if (verbose) cat("Stuck chains check\n")
-
+      
+      if (verbose) cat("Stuck chains check\n") 
+      
       if (thorough) {
         # check both hyper & participant-level chains
         stucks <- lapply(samples,pick.stuck.dmc,cut=cut)
@@ -1621,7 +1667,7 @@ h.RUN.dmc <- function(hsamples,
         # check only hyper chains
         ok <- c(hyper=length(pick.stuck.dmc(samples,hyper=TRUE,cut=cut)))
       }
-
+      
       fail <- any( ok > 0 )
       if (verbose) {
         if (!fail) cat(": OK\n") else
@@ -1629,7 +1675,7 @@ h.RUN.dmc <- function(hsamples,
       }
       fail
     }
-
+    
     h.FlatTests <- function(samples,
                             thorough=TRUE,
                             p1=1/3,
@@ -1637,9 +1683,9 @@ h.RUN.dmc <- function(hsamples,
                             cut.location=0.25,
                             cut.scale=Inf,
                             verbose=FALSE) {
-
+      
       gmcmc <- function(samples, thorough) {
-
+        
         h <- attr(samples, "hyper")
         phi1 <- matrix(aperm(h$phi[[1]],c(1,3,2)),
                        ncol=dim(h$phi[[1]])[2],
@@ -1650,27 +1696,27 @@ h.RUN.dmc <- function(hsamples,
                        dimnames=list(NULL, paste0(dimnames(h$phi[[2]])[[2]],
                                                   ".h2")))
         m <- cbind(phi1, phi2)
-
+        
         if (thorough) {
-
+          
           # add participant-level chains
-
+          
           mindlist <- lapply(seq_along(samples), function(i) {
             m_i <- matrix(aperm(samples[[i]]$theta,c(1,3,2)),
                           ncol=dim(samples[[i]]$theta)[2],
                           dimnames=list(NULL,
                           paste0(i, ".", dimnames(samples[[i]]$theta)[[2]])))
           })
-
+          
           mind <- do.call(cbind, mindlist)
           m <- cbind(m, mind)
-
+          
         }
-
+        
         mcmc(m)
-
+        
       }
-
+      
       mat <- gmcmc(samples, thorough = thorough)
       xlen <- round(dim(mat)[1] * p1)
       ylen <- round(dim(mat)[1] * p2)
@@ -1685,7 +1731,7 @@ h.RUN.dmc <- function(hsamples,
       if (!fail) out <- "" else
         out <- paste(names(m.zs)[m.zs==max(m.zs)],"=",round(max(m.zs),2))
       if ( is.finite(cut.scale) ) {
-        # Change in IQR relative to overall IQR
+        # Change in IQR relative to overall IQR 
         s.zs <- apply(mat,2,function(x){
           m1 <- IQR(x[1:xlen])
           m2 <- IQR(x[(length(x)-ylen):length(x)])
@@ -1693,31 +1739,31 @@ h.RUN.dmc <- function(hsamples,
         })
         names(s.zs) <- paste("s",names(s.zs),sep="_")
         if (out != "") out <- paste(out,", ",sep="")
-        if (any(s.zs>cut.scale)) out <-
+        if (any(s.zs>cut.scale)) out <- 
           paste(out,names(s.zs)[s.zs==max(s.zs)],"=",round(max(s.zs),2))
-        fail <- fail | any(s.zs>cut.scale)
-      }
+        fail <- fail | any(s.zs>cut.scale) 
+      } 
       if (verbose) {
         cat("Flat check\n")
         print(round(m.zs,2))
-        if ( is.finite(cut.scale) )
-          print(round(s.zs,2)) else
-            if (!fail) cat(": OK\n") else
+        if ( is.finite(cut.scale) ) 
+          print(round(s.zs,2)) else 
+            if (!fail) cat(": OK\n") else 
               cat(paste(":",out,"\n"))
       }
       fail
     }
-
+    
     h.MixTests <- function(samples,
                            thorough=TRUE,
                            verbose=FALSE,
                            cut,
                            split=TRUE) {
-
+      
       tmp <- gelman.diag.dmc(samples, hyper=TRUE, split=split)
       names(tmp$mpsrf) <- "hyper_mpsrf"
       gds <- c(tmp$mpsrf,tmp$psrf[,1])
-
+      
       if (thorough) {
         # add participant-level
         tmp2 <- gelman.diag.dmc(samples, split=split)
@@ -1741,26 +1787,26 @@ h.RUN.dmc <- function(hsamples,
       }
       fail
     }
-
+    
     h.LengthTests <- function(samples,
                               minN,
                               nfun,
                               thorough=TRUE,
                               verbose=FALSE) {
-
+      
       n <- do.call(nfun,list(h.get.size(samples, thorough = thorough)))
-
+      
       fail <- n < minN
-      if (verbose) {
+      if (verbose) { 
         cat("Length check")
-        if (!fail) cat(": OK\n") else cat(paste(":",n,"\n"))
+        if (!fail) cat(": OK\n") else cat(paste(":",n,"\n"))  
       }
       fail
     }
-
-
+    
+    
     if (!verbose) report <- 1e8
-
+    
     if (use.effectiveSize) {
       h.get.size <- function(hsamples, thorough) {
         neff <- effectiveSize.dmc(hsamples, hyper = TRUE)
@@ -1772,25 +1818,25 @@ h.RUN.dmc <- function(hsamples,
     } else {
       h.get.size <- function(x, thorough){prod(dim(x[[1]]$theta)[-2])}
     }
-
+    
     if ( !is.na(minN) & !is.na(meanN) ) {
       warning("Both minN and meanN specified, using minN")
-      meanN <- NA
+      meanN <- NA 
     }
     if ( !is.na(minN) ) nfun <- "min"
     if ( !is.na(meanN) ) {
       nfun <- "mean"
       minN <- meanN
     }
-
+    
     if ( is.na(n.add) ) n <-  ceiling(hsamples[[1]]$nmc/3) else {
       if ( n.add >= floor(hsamples[[1]]$nmc/2) )
         stop(paste("n.flat.test to large, must be less than",
                    floor(hsamples[[1]]$nmc/2)))
       n <- n.add
     }
-
-    if ( any(!is.finite(hsamples[[1]]$log_likelihoods[hsamples[[1]]$nmc,])) )
+    
+    if ( any(!is.finite(hsamples[[1]]$log_likelihoods[hsamples[[1]]$nmc,])) ) 
     { # New samples
       do.migrate=1
       if (verbose) {
@@ -1800,55 +1846,55 @@ h.RUN.dmc <- function(hsamples,
                             gamma.mult=gamma.mult,h.gamma.mult=h.gamma.mult,
                             p.migrate=p.migrate,h.p.migrate=h.p.migrate)
     } else do.migrate=0 # Samples already good, just want more.
-
-    if ( !force && !is.null(attr(hsamples,"auto")) &&
+    
+    if ( !force && !is.null(attr(hsamples,"auto")) && 
          !is.na(attr(hsamples,"auto")) && attr(hsamples,"auto")!="GRID FAIL" )
       return(hsamples) # If already sucessfully run then dont run again unless force=TRUE
     n.try <- 0
     repeat {
-
+      
       # DO TESTS
-
+      
       # Stuck check
       if ( h.StuckTests(hsamples,
                         thorough=thorough,
                         cut=cut.unstuck,
-                        verbose=verbose) )
-      { # Start again
+                        verbose=verbose) ) 
+      { # Start again 
         do.migrate <- 1
         get.new <- test.again <- TRUE
       } else get.new <- test.again <- FALSE
-
+      
       # Stationarity check
       if ( !get.new && any(h.FlatTests(hsamples,
                                        verbose=verbose,
                                        thorough=thorough,
                                        cut.location=cut.flat.location,
-                                       cut.scale=cut.flat.scale)) )
+                                       cut.scale=cut.flat.scale)) ) 
       { # remove first 1/3, add new 1/3
         if (verbose) cat("Removing initial 1/3 of samples\n")
         nshift <- ceiling(hsamples[[1]]$nmc/3)
         hsamples <- h.samples.dmc(samples=hsamples,remove=1:nshift,
-                                  nmc=0,add=TRUE)
+                                  nmc=0,add=TRUE)  
         hsamples <- h.samples.dmc(samples=hsamples,add=TRUE,nmc=n)
-        test.again <- TRUE
+        test.again <- TRUE  
         get.new <- FALSE
-      }
-
+      } 
+      
       # Mixing check
-      if ( (!get.new & !test.again) &&
+      if ( (!get.new & !test.again) && 
            h.MixTests(hsamples,
                       thorough=thorough,
                       verbose=verbose,
                       cut=cut.converge,
-                      split=split) ) {
+                      split=split) ) { 
         { # Make longer
           hsamples <- h.samples.dmc(samples=hsamples,nmc=n,add=TRUE)
           test.again <- TRUE
           get.new <- FALSE
         }
       }
-
+      
       # Length check
       if ( (!get.new & !test.again) &&
            ( !is.na(minN) && h.LengthTests(hsamples,
@@ -1860,7 +1906,7 @@ h.RUN.dmc <- function(hsamples,
         test.again <- TRUE
         get.new <- FALSE
       }
-
+      
       # Sucess?
       if ( !get.new & !test.again ) {
         outcome <- "SUCESS"
@@ -1885,29 +1931,29 @@ h.RUN.dmc <- function(hsamples,
                               h.gamma.mult=h.gamma.mult,
                               p.migrate=p.migrate*do.migrate)
       }
-
+      
       # Give up?
       n.try <- n.try + 1
       if ( (n.try > max.try) ) {
         outcome <- "FAIL"
         if (verbose) cat(paste("\nOUTCOME:",outcome,"AFTER TRY",n.try,"\n"))
-        break
+        break 
       } else if (verbose) cat(paste("COMPLETED TRY",n.try,"\n\n"))
     }
     if (outcome=="FAIL") attr(hsamples,"auto") <- NA else
       attr(hsamples,"auto") <- n.try
-
+    
   } else {
-
+    
     ### multiple participants, not truly hierarchical ###
-
-    if ( cores == 1 | !subjects.to.cores )
+    
+    if ( cores == 1 | !subjects.to.cores ) 
       hsamples <- lapply(hsamples,RUN.dmc,cores=cores,report=report,
                          p.migrate=p.migrate,max.try=max.try,cut.unstuck=cut.unstuck,
                          cut.flat.location=cut.flat.location,cut.flat.scale=cut.flat.scale,
                          cut.converge=cut.converge,split=split,
                          minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
-                         verbose=verbose,gamma.mult=gamma.mult) else
+                         verbose=verbose,gamma.mult=gamma.mult) else 
     {
       os <- get.os()
       if ( os=="windows" ) {
@@ -1921,13 +1967,13 @@ h.RUN.dmc <- function(hsamples,
         sfLibrary(pracma)
         sfLibrary(coda)
         sfExportAll()
-        if (subjects.to.cores==TRUE) hsamples <-
+        if (subjects.to.cores==TRUE) hsamples <- 
           sfLapply(hsamples,RUN.dmc,cores=1,report=report,
                    p.migrate=p.migrate,max.try=max.try,cut.unstuck=cut.unstuck,
                    cut.flat.location=cut.flat.location,cut.flat.scale=cut.flat.scale,
                    cut.converge=cut.converge,split=split,
                    minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
-                   verbose=verbose,gamma.mult=gamma.mult)
+                   verbose=verbose,gamma.mult=gamma.mult) 
         sfStop()
       } else {
         require(parallel, quietly=TRUE)
@@ -1937,16 +1983,67 @@ h.RUN.dmc <- function(hsamples,
                              cut.converge=cut.converge,split=split,
                              minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
                              verbose=verbose,gamma.mult=gamma.mult,mc.cores=cores)
-      }
+      } 
     }
-
+    
     cat(paste("Number of trys (NA implies fails after max.try =",max.try,")\n"))
     print(unlist(lapply(hsamples,function(x){attr(x,"auto")})))
-
+    
   }
   hsamples
 }
 
+# h.RUN.dmc <- function(hsamples,cores=1,report=10,p.migrate=.05,max.try=100,
+#   cut.unstuck=10,
+#   cut.flat.location=.5,cut.flat.scale=.5,
+#   cut.converge=1.1,split=TRUE,
+#   minN=NA,meanN=NA,use.effectiveSize = TRUE,
+#   verbose=FALSE,gamma.mult=2.38,
+#   subjects.to.cores=TRUE,slaveOutfile=NULL)
+#   
+# {
+#   if ( cores == 1 | !subjects.to.cores ) 
+#     hsamples <- lapply(hsamples,RUN.dmc,cores=cores,report=report,
+#       p.migrate=p.migrate,max.try=max.try,cut.unstuck=cut.unstuck,
+#       cut.flat.location=cut.flat.location,cut.flat.scale=cut.flat.scale,
+#       cut.converge=cut.converge,split=split,
+#       minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
+#       verbose=verbose,gamma.mult=gamma.mult) else 
+#   {
+#     os <- get.os()
+#     if ( os=="windows" ) {
+#       require(snowfall,quietly=TRUE)
+#       require(rlecuyer,quietly=TRUE)
+#       sfInit(parallel=TRUE, cpus=cores, type="SOCK",slaveOutfile=slaveOutfile)
+#       sfClusterSetupRNG()
+#       sfLibrary(msm)
+#       sfLibrary(rtdists)
+#       sfLibrary(statmod)
+#       sfLibrary(pracma)
+#       sfLibrary(coda)
+#       sfExportAll()
+#       if (subjects.to.cores==TRUE) hsamples <- 
+#         sfLapply(hsamples,RUN.dmc,cores=1,report=report,
+#           p.migrate=p.migrate,max.try=max.try,cut.unstuck=cut.unstuck,
+#           cut.flat.location=cut.flat.location,cut.flat.scale=cut.flat.scale,
+#           cut.converge=cut.converge,split=split,
+#           minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
+#           verbose=verbose,gamma.mult=gamma.mult) 
+#       sfStop()
+#     } else {
+#       require(parallel, quietly=TRUE)
+#       hsamples <- mclapply(hsamples,RUN.dmc,cores=1,report=report,
+#         p.migrate=p.migrate,max.try=max.try,cut.unstuck=cut.unstuck,
+#         cut.flat.location=cut.flat.location,cut.flat.scale=cut.flat.scale,
+#         cut.converge=cut.converge,split=split,
+#         minN=minN,meanN=meanN,use.effectiveSize = use.effectiveSize,
+#         verbose=verbose,gamma.mult=gamma.mult,mc.cores=cores)
+#     } 
+#   }
+#   cat(paste("Number of trys (NA implies fails after max.try =",max.try,")\n"))
+#   print(unlist(lapply(hsamples,function(x){attr(x,"auto")})))
+#   hsamples
+# }
 
 ####### Use grid to fit each subject seperately
 

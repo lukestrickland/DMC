@@ -7,10 +7,12 @@
 
 transform.dmc <- function(par.df) 
 {
+  # User supplied tranforms go here
   par.df$b <- par.df$B+par.df$A
   
   # Replace mismatch in mean_v (set to Inf as a constant) with mean_v_false
-  par.df$mean_v[par.df[,"mean_v"]==Inf] <- par.df[1,"mean_v_false"]
+  # Wrap in try to avoid fail on intial check in model.dmc
+  try(par.df[!is.finite(par.df[,"mean_v"]),"mean_v"] <- par.df[1,"mean_v_false"],silent=TRUE)
   
   par.df[,c("A","b","t0","mean_v","sd_v","st0")]
 }

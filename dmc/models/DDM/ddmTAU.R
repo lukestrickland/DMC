@@ -43,8 +43,7 @@ likelihood.dmc <- function(p.vector,data,ok.types=NULL,min.like=1e-10,
   {
     (p$a[1]<0)      | (p$z[1] <1e-6) | (p$z[1] >.999999) | (p$t0[1]<1e-6)  | 
       (p$sz[1]<0) | (p$st0[1]<0)    | (p$sv[1]<0) |
-      (p$sz[1]>1.999999*min(c(p$z[1],1-p$z[1]))) |
-      (p$t0[1]-p$st0[1]/2<0)  
+      (p$sz[1]>1.999999*min(c(p$z[1],1-p$z[1]))) 
   }
   
   bound <- rep("lower",dim(attr(data,"model"))[1])

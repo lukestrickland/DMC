@@ -1,8 +1,5 @@
-
-
-
 ####################### ExGaussian stop signal----
-{
+
   # WHY TRIAL SCALING IS BAD IN EXG, mean not proportional to sd
   # TRIALS=c(0:10)/10
   # mu=.5; sigma=.025; tau=.05; ts=.25
@@ -278,67 +275,140 @@
   # n1PDF.exgss(NA,mu,sigma,tau,SSD=.1,Si=1,tf=tf,gf=gf)
   # n1PDF.exgss(NA,mu,sigma,tau,SSD=1,Si=1,tf=tf,gf=gf)
   # 
-  # ########### THREE ACCUMULATOR CASE
-  # 
-  # # Check, two different SSDs 
-  # n=1e5
-  # SSD = rep(c(1,10)/10,each=n/2)
-  # 
-  # # Stop, first go accumulator correct, second error
-  # mu=c(.75,1,1.25); sigma=c(.25,.25,.25); tau=c(.25,.5,.5)
-  # 
-  # ### RUN ONE OF THE FOLLOWING FOUR LINES
-  # # Without trigger failure or go failure
-  # tf=0; gf=0
-  # # With trigger failure, no go failure
-  # tf=.1;gf=0
-  # # Without trigger failure, with go failure
-  # tf=0; gf=.1
-  # # With trigger failure and go failure
-  # tf=.1;gf=.1
-  # 
-  # # Simulate data and get simlate stop rate
-  # sim <- rexgss(n=n,mu,sigma,tau,SSD=SSD,tf=tf,gf=gf)
-  # # Plot data
-  # par(mfrow=c(1,2))
-  # dns1 <- plot.cell.density(sim[sim$SSD==.1,],xlim=c(0,7),save.density=TRUE,main="SSD=.1")
-  # dns2 <- plot.cell.density(sim[sim$SSD!=.1,],xlim=c(0,7),save.density=TRUE,main="SSD=1")
-  # 
-  # # Signal respond RT
-  # dat <- sim; dat <- dat[!is.na(dat$RT),]; dat$R <- factor(as.character(dat$R))
-  # round(tapply(dat$RT,dat[,c("R","SSD")],mean),2)
-  # 
-  # # Save simulated densities
-  # x1c <- dns1$'2'$x; x2c <- dns2$'2'$x
-  # x1e <- dns1$'3'$x; x2e <- dns2$'3'$x
-  # 
-  # SSD <- c(rep(.1,length(x1c)),rep(1,length(x2c)))
-  # r1 <- c(2,1,3)
-  # d.r1 <- n1PDF.exgss(dt=c(x1c,x2c),mu=mu[r1],sigma=sigma[r1],tau=tau[r1],
-  #                     SSD=SSD,Si=2,tf=tf,gf=gf)
-  # SSD <- c(rep(.1,length(x1e)),rep(1,length(x2e)))
-  # r2 <- c(3,1,2)
-  # d.r2 <- n1PDF.exgss(dt=c(x1e,x2e),mu=mu[r2],sigma=sigma[r2],tau=tau[r2],
-  #                     SSD=SSD,Si=2,tf=tf,gf=gf)
-  # 
-  # # Plot simulated (black) and theoretical (red) densities
-  # par(mfrow=c(1,2))
-  # # red=black?
-  # plot(x1c,dns1$'2'$y,type="l",main="SSD=.1",ylab="Density",xlab="RT",
-  #      ylim=c(0,max(dns1$'2'$y)))
-  # lines(x1c,d.r1[1:length(x1c)],col="red")
-  # lines(x1e,dns1$'3'$y,lty=2)
-  # lines(x1e,d.r2[1:length(x1e)],col="red",lty=2)
-  # # red=black?
-  # plot(x2c,dns2$'2'$y,type="l",main="SSD=1",ylab="Density",xlab="RT",
-  #      ylim=c(0,max(dns2$'2'$y)))
-  # lines(x2c,d.r1[(length(x2c)+1):(2*length(x2c))],col="red")
-  # lines(x2e,dns2$'3'$y,lty=2)
-  # lines(x2e,d.r2[(length(x2e)+1):(2*length(x2e))],col="red",lty=2)
-  # 
-  # # p(Stop check)
-  # tapply(is.na(sim$RT),sim$SSD,mean) # empirical
-  # # Theoretical
-  # n1PDF.exgss(NA,mu,sigma,tau,SSD=.1,Si=1,tf=tf,gf=gf)
-  # n1PDF.exgss(NA,mu,sigma,tau,SSD=1,Si=1,tf=tf,gf=gf)
-}
+#   ########### THREE ACCUMULATOR CASE
+#   
+#   # Check, two different SSDs 
+#   n=1e5
+#   SSD = rep(c(1,10)/10,each=n/2)
+#   
+#   # Stop, first go accumulator correct, second error
+#   mu=c(.75,1,1.25); sigma=c(.25,.25,.25); tau=c(.25,.5,.5)
+#   
+#   ### RUN ONE OF THE FOLLOWING FOUR LINES
+#   # Without trigger failure or go failure
+#   tf=0; gf=0
+#   # With trigger failure, no go failure
+#   tf=.1;gf=0
+#   # Without trigger failure, with go failure
+#   tf=0; gf=.1
+#   # With trigger failure and go failure
+#   tf=.1;gf=.1
+#   
+#   # Simulate data and get simlate stop rate
+#   sim <- rexgss(n=n,mu,sigma,tau,SSD=SSD,tf=tf,gf=gf)
+#   # Plot data
+#   par(mfrow=c(1,2))
+#   dns1 <- plot.cell.density(sim[sim$SSD==.1,],xlim=c(0,7),save.density=TRUE,main="SSD=.1")
+#   dns2 <- plot.cell.density(sim[sim$SSD!=.1,],xlim=c(0,7),save.density=TRUE,main="SSD=1")
+#   
+#   # Signal respond RT
+#   dat <- sim; dat <- dat[!is.na(dat$RT),]; dat$R <- factor(as.character(dat$R))
+#   round(tapply(dat$RT,dat[,c("R","SSD")],mean),2)
+#   
+#   # Save simulated densities
+#   x1c <- dns1$'2'$x; x2c <- dns2$'2'$x
+#   x1e <- dns1$'3'$x; x2e <- dns2$'3'$x
+#   
+#   SSD <- c(rep(.1,length(x1c)),rep(1,length(x2c)))
+#   r1 <- c(2,1,3)
+#   d.r1 <- n1PDF.exgss(dt=c(x1c,x2c),mu=mu[r1],sigma=sigma[r1],tau=tau[r1],
+#                       SSD=SSD,Si=2,tf=tf,gf=gf)
+#   SSD <- c(rep(.1,length(x1e)),rep(1,length(x2e)))
+#   r2 <- c(3,1,2)
+#   d.r2 <- n1PDF.exgss(dt=c(x1e,x2e),mu=mu[r2],sigma=sigma[r2],tau=tau[r2],
+#                       SSD=SSD,Si=2,tf=tf,gf=gf)
+#   
+#   # Plot simulated (black) and theoretical (red) densities
+#   par(mfrow=c(1,2))
+#   # red=black?
+#   plot(x1c,dns1$'2'$y,type="l",main="SSD=.1",ylab="Density",xlab="RT",
+#        ylim=c(0,max(dns1$'2'$y)))
+#   lines(x1c,d.r1[1:length(x1c)],col="red")
+#   lines(x1e,dns1$'3'$y,lty=2)
+#   lines(x1e,d.r2[1:length(x1e)],col="red",lty=2)
+#   # red=black?
+#   plot(x2c,dns2$'2'$y,type="l",main="SSD=1",ylab="Density",xlab="RT",
+#        ylim=c(0,max(dns2$'2'$y)))
+#   lines(x2c,d.r1[(length(x2c)+1):(2*length(x2c))],col="red")
+#   lines(x2e,dns2$'3'$y,lty=2)
+#   lines(x2e,d.r2[(length(x2e)+1):(2*length(x2e))],col="red",lty=2)
+#   
+#   # p(Stop check)
+#   tapply(is.na(sim$RT),sim$SSD,mean) # empirical
+#   # Theoretical
+#   n1PDF.exgss(NA,mu,sigma,tau,SSD=.1,Si=1,tf=tf,gf=gf)
+#   n1PDF.exgss(NA,mu,sigma,tau,SSD=1,Si=1,tf=tf,gf=gf)
+
+
+#   ########### FOUR ACCUMULATOR CASE
+#   
+#   # Check, two different SSDs 
+#   n=1e5
+#   SSD = rep(c(1,10)/10,each=n/2)
+#   
+#   # Stop, first go accumulator correct, second and third error
+#   mu=c(.75,1,1.25,1.25); sigma=c(.25,.25,.25,.25); tau=c(.25,.5,.5,.5)
+#   
+#   ### RUN ONE OF THE FOLLOWING FOUR LINES
+#   # Without trigger failure or go failure
+#   tf=0; gf=0
+#   # With trigger failure, no go failure
+#   tf=.1;gf=0
+#   # Without trigger failure, with go failure
+#   tf=0; gf=.1
+#   # With trigger failure and go failure
+#   tf=.1;gf=.1
+#   
+#   # Simulate data and get simlate stop rate
+#   sim <- rexgss(n=n,mu,sigma,tau,SSD=SSD,tf=tf,gf=gf)
+#   # Plot data
+#   par(mfrow=c(1,2))
+#   dns1 <- plot.cell.density(sim[sim$SSD==.1,],xlim=c(0,7),save.density=TRUE,main="SSD=.1")
+#   dns2 <- plot.cell.density(sim[sim$SSD!=.1,],xlim=c(0,7),save.density=TRUE,main="SSD=1")
+#   
+#   # Signal respond RT
+#   dat <- sim; dat <- dat[!is.na(dat$RT),]; dat$R <- factor(as.character(dat$R))
+#   round(tapply(dat$RT,dat[,c("R","SSD")],mean),2)
+#   
+#   # Save simulated densities
+#   x1c <- dns1$'2'$x; x2c <- dns2$'2'$x
+#   x1e1 <- dns1$'3'$x; x2e1 <- dns2$'3'$x
+#   x1e2 <- dns1$'4'$x; x2e2 <- dns2$'4'$x
+#   
+#   SSD <- c(rep(.1,length(x1c)),rep(1,length(x2c)))
+#   r1 <- c(2,1,3,4)
+#   d.r1 <- n1PDF.exgss(dt=c(x1c,x2c),mu=mu[r1],sigma=sigma[r1],tau=tau[r1],
+#                       SSD=SSD,Si=2,tf=tf,gf=gf)
+#   SSD <- c(rep(.1,length(x1e1)),rep(1,length(x2e1)))
+#   r2 <- c(3,1,2,4)
+#   d.r2 <- n1PDF.exgss(dt=c(x1e1,x2e1),mu=mu[r2],sigma=sigma[r2],tau=tau[r2],
+#                       SSD=SSD,Si=2,tf=tf,gf=gf)
+#   SSD <- c(rep(.1,length(x1e2)),rep(1,length(x2e2)))
+#   r2 <- c(4,1,2,3)
+#   d.r3 <- n1PDF.exgss(dt=c(x1e2,x2e2),mu=mu[r2],sigma=sigma[r2],tau=tau[r2],
+#                       SSD=SSD,Si=2,tf=tf,gf=gf)
+#   
+#   # Plot simulated (black) and theoretical (red) densities
+#   par(mfrow=c(1,2))
+#   # red=black?
+#   plot(x1c,dns1$'2'$y,type="l",main="SSD=.1",ylab="Density",xlab="RT",
+#        ylim=c(0,max(dns1$'2'$y)))
+#   lines(x1c,d.r1[1:length(x1c)],col="red")
+#   lines(x1e1,dns1$'3'$y,lty=2)
+#   lines(x1e1,d.r2[1:length(x1e1)],col="red",lty=2)
+#   lines(x1e2,dns1$'4'$y,lty=3)
+#   lines(x1e2,d.r3[1:length(x1e2)],col="red",lty=3)
+#   # red=black?
+#   plot(x2c,dns2$'2'$y,type="l",main="SSD=1",ylab="Density",xlab="RT",
+#        ylim=c(0,max(dns2$'2'$y)))
+#   lines(x2c,d.r1[(length(x2c)+1):(2*length(x2c))],col="red")
+#   lines(x2e1,dns2$'3'$y,lty=2)
+#   lines(x2e1,d.r2[(length(x2e1)+1):(2*length(x2e1))],col="red",lty=2)
+#   lines(x2e2,dns2$'4'$y,lty=3)
+#   lines(x2e2,d.r3[(length(x2e2)+1):(2*length(x2e2))],col="red",lty=3)
+#   
+#   # p(Stop check)
+#   tapply(is.na(sim$RT),sim$SSD,mean) # empirical
+#   # Theoretical
+#   n1PDF.exgss(NA,mu,sigma,tau,SSD=.1,Si=1,tf=tf,gf=gf)
+#   n1PDF.exgss(NA,mu,sigma,tau,SSD=1,Si=1,tf=tf,gf=gf)

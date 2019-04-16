@@ -13,7 +13,7 @@ require(pracma)  # For gng and stop signal robust integration
 require(numDeriv) # Prior transformations
 require(vioplot) # Stop signal graphs
 require(ggplot2)
-require(gridExtra)
+require(parallel) 
 
 # Pull in the file utilities so load_model can be called from dmc_hierarchical 
 temp_wd <- getwd (); setwd(file.path (temp_wd, "dmc")) 
@@ -26,7 +26,6 @@ source ("dmc_sampling.R")
 source ("dmc_hierarchical.R")
 source ("dmc_plotting.R")
 source ("dmc_analysis.R")
-source ("dmc_PMDC.R")
 
 setwd(temp_wd)
 

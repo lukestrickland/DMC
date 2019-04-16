@@ -67,7 +67,7 @@ plot.dmc(samples,pll.chain=TRUE,start=350)
 plot.dmc(samples,start=350,layout=c(2,3))
 
 # Looks like burnt in, so get a longer run without migration and add some thinning
-# as loks fairly autocorrelated
+# as looks fairly autocorrelated
 samples1 <- run.dmc(samples.dmc(nmc=100,samples=samples,thin=5),cores=18)
 
 plot.dmc(samples1,pll.chain=TRUE)

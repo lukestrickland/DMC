@@ -25,7 +25,7 @@ transform.dmc <- function(par.df)
   par.df[,c("mu","sigma","tau","muS","sigmaS","tauS","tf","gf")]
 }
 
-random.dmc<- function(n,p.df,model,SSD=Inf,staircase=NA)
+random.dmc<- function(n,p.df,model,SSD=Inf,staircase=NA,TRIALS=NULL)
 {
   rexgss(n,mu=p.df$mu,sigma=p.df$sigma,tau=p.df$tau,
    tf=p.df$tf[1],gf=p.df$gf[1],

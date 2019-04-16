@@ -1,22 +1,17 @@
-# Template setup for n-choice LBA
-#   External parameters types: A, b, t0, mean_v, sd_v, st0 = 0 (optional)
+# Template setup for n-choice LBA, B=b-A unbounded parameterization (except st0 so can fix at zero)
+#   External parameters types: log(A), log(B), log(t0), mean_v, log(sd_v), st0 = 0 (optional)
 #   Internal parameters types: A, b, t0, mean_v, sd_v, st0 = 0 (optional)
 
 # User edited functions for the DMC (Dynamic Models of Choice)
 #    Source in all applications
 
-#source("rtdists_extras.R")
-
-# This function transfroms parameters to a form suitbale for the model 
-#   being used. Called inside of get.par.mat. 
-# "par.df" is a data frame of parameters types , some of which may need to be 
-#   transformed, or new columns created, so that the full set of internal 
-#   parameter types, specified in "type.par.names", required by the type of 
-#   evidence accumulation model being used ("norm" etc.) is present.
 transform.dmc <- function(par.df) 
 {
-  # User supplied tranforms go here
-
+  par.df$A <- exp(par.df$A)
+  par.df$B <- exp(par.df$B)
+  par.df$b <- par.df$B+par.df$A
+  par.df$t0 <- exp(par.df$t0)
+  par.df$sd_v <- exp(par.df$sd_v)
   par.df[,c("A","b","t0","mean_v","sd_v","st0")]
 }
 
@@ -24,13 +19,12 @@ transform.dmc <- function(par.df)
 random.dmc <- function(n,p.df,model)
 {
   rlba.norm(n,A=p.df$A,b=p.df$b,t0=p.df$t0, 
-                               mean_v=p.df$mean_v,sd_v=p.df$sd_v,st0=p.df$st0[1],
-                               posdrift = attr(model,"posdrift"))
+            mean_v=p.df$mean_v,sd_v=p.df$sd_v,st0=p.df$st0[1],
+            posdrift = attr(model,"posdrift"))
 }
 
 
 likelihood.dmc <- function(p.vector,data,ok.types=c("norm"),min.like=1e-10)   
-# Returns vector of likelihoods for each RT in data (in same order)
 {
 
   likelihood <- numeric(dim(data)[1])
