@@ -765,3 +765,19 @@ cors.plot <- function(out) {
   geom_errorbar(data=ggdf,aes(ymin=LCI,ymax=HCI)) 
   
 }
+
+
+#averages thetas together that match a certain regex expression
+#for a single participant's thetas
+get_average_thetas <- function (regex, thetas) {
+  apply(thetas[, grep(regex, colnames(thetas)),], c(1,3),
+      mean)
+}
+
+#averages thetas together that match a certain regex expression
+#for .list of participants
+h.get_average_thetas <- function (regex, samples) {
+  lapply(samples, function(x) get_average_thetas(regex, x$theta))
+}
+
+
