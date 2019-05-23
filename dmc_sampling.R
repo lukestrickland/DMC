@@ -759,12 +759,13 @@ post.predict.dmc <-function(samples,n.post=100,probs=c(1:99)/100,random=TRUE,
   # make list of posterior preditive density, quantiles and response p(robability)
   # NB: quantiles only calcualted for 2 or more RTs
 { 
-  
+  #changes tibbles back to data frames if necessary
+  samples$data <- as.data.frame(samples$data)
   model <- attributes(samples$data)$model
   facs <- names(attr(model,"factors"))
   cvs <- samples$data[,attr(model,"cvs")]
   attr(cvs,"row.facs") <- apply(apply(
-    samples$data[,facs,drop=FALSE],2,as.character),1,paste,collapse=".")
+  samples$data[,facs,drop=FALSE],2,as.character),1,paste,collapse=".")
   if ( ignore.R2 & any(names(samples$data)=="R2") )
     samples$data <- samples$data[,names(samples$data)[names(samples$data)!="R2"]]
   if (!is.null(factors) ) {
