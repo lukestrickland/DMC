@@ -529,7 +529,8 @@ ss.get.effects.dmc <- function (PPs, fun = function (x) {mean (x)}, lower=.025, 
 # to the ongoing rates on non-PM trials (PM block)
 
 pickps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=TRUE,
-                                   bw="nrd0",report=10,save.simulation=TRUE,factors=NA, pickps_others, pickps_set)
+                                   bw="nrd0",report=10,save.simulation=TRUE,factors=NA, pickps_others, pickps_set,
+                                   special_model=NA)
   # make list of posterior preditive density, quantiles and response p(robability)
 {
   
@@ -613,7 +614,8 @@ pickps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=T
     list(pdf=dens,cdf=qs,p=p,ps=ps,pNA=pNA,pNAs=pNAs)
   }
   
-  model <- attributes(samples$data)$model
+  if (any(is.na(special_model))) model <- attributes(samples$data)$model else model <-
+      special_model
   facs <- names(attr(model,"factors"))
   if (any(is.na(factors))) factors <- facs
   if (!all(factors %in% facs))
@@ -629,13 +631,18 @@ pickps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=T
   }
   n.post <- length(use)
   posts <- thetas[use,]
-  
   #more robust
-  
-  
   ###Replace some parameter vlaues with others.
-  posts[,colnames(posts) %in% pickps_others][,pickps_others] <- 
+  
+  #if to handle the case where only 1 post value
+  if(length(pickps_others==1)) {
+    posts[,pickps_others] <-  posts[,pickps_set] 
+  } else {
+    posts[,colnames(posts) %in% pickps_others][,pickps_others] <- 
     posts[,colnames(posts) %in% pickps_set][,pickps_set] 
+    
+  }
+
   
   ########
   n.rep <- sum(ns)
@@ -683,11 +690,13 @@ pickps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=T
 #lapply the above to the whole samples object.
 pickps.h.post.predict.dmc<- function(samples,n.post=100,probs=c(1:99)/100,
                                    bw="nrd0",
-                                   save.simulation=FALSE, pickps_set, pickps_others)
+                                   save.simulation=FALSE, pickps_set, pickps_others,
+                                   special_model=NA)
   # apply lost.predict to each subject
 {
   lapply(samples,pickps.post.predict.dmc,n.post=n.post,probs=probs,bw=bw,
-         save.simulation=save.simulation, pickps_set=pickps_set, pickps_others=pickps_others)
+         save.simulation=save.simulation, pickps_set=pickps_set, pickps_others=pickps_others,
+         special_model=special_model)
 }
 
 
