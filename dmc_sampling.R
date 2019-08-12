@@ -763,7 +763,7 @@ post.predict.dmc <-function(samples,n.post=100,probs=c(1:99)/100,random=TRUE,
   samples$data <- as.data.frame(samples$data)
   model <- attributes(samples$data)$model
   facs <- names(attr(model,"factors"))
-  cvs <- samples$data[,attr(model,"cvs")]
+  cvs <- samples$data[,attr(model,"cvs"), drop=FALSE]
   attr(cvs,"row.facs") <- apply(apply(
   samples$data[,facs,drop=FALSE],2,as.character),1,paste,collapse=".")
   if ( ignore.R2 & any(names(samples$data)=="R2") )

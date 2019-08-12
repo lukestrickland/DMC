@@ -4,7 +4,7 @@
 #test 2
 require("gridExtra")
 require("lme4")
-require("plyr")
+# require("plyr")
 require("dplyr")
 require("data.table")
 
@@ -712,6 +712,17 @@ get.hdata.dmc <- function(hsamples) {
 }
 
 fixedeffects.meanthetas <- function (samples) {
+  
+#handle different nmcs  
+  nmcs<- sapply(samples, function(x) x$nmc)
+  nmc <- min(nmcs)
+#Different numbers of nmc for each participant... use the min number and then
+  #for participants wtih more randomly sample out that many
+  for (i in 1:length(samples)) if (nmcs[i] > nmc) samples[[i]]$theta <- 
+    samples[[i]]$theta[,,sample(1:dim(samples[[i]]$theta)[3], nmc)]
+####
+  
+    
   samps <- lapply(samples, function(x)
     x["theta"])
   ##
