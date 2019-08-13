@@ -80,7 +80,7 @@ transform.dmc <- function(par.df)
     inh_slope[2] = inh_slope[3]
     inh_slope[3] = 0
     
-    INH <- t_matrix(par.df$inh, length(stimreps)) + par.df$inh_ex_rel[1]*stimreps*t_matrix(
+    INH <- t_matrix(par.df$inh, length(stimreps)) + stimreps*t_matrix(
       inh_slope, length(stimreps))
 
     A <-  t_matrix(par.df$A, length(stimreps))
