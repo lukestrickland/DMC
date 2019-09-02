@@ -50,27 +50,6 @@ transform.dmc <- function(par.df)
     #of times stimulus has been presented)
     INH <- par.df$inh + (stimreps * inh_slope)
 
-    A <- par.df$A
-    
-    #Learning on the PM thresholds:
-    #parameterized differently because we need B min
-    #to be 0 (i.e., b can't be <A)
-    #
-    #  m  = (total diff in Bs / diff in stimreps)
-    # minB = PM threshold on first presentation of items (stimreps=0)
-    # PM threshold = m * stimreps + minB
-
-    #Here I just hard coded total diff in stimreps as 7 to avoid calculating
-    total_x_diff=7
-   
-    B <- par.df$B
-    B[,3] <- ((par.df$finalB[,3] - par.df$B[,3])/total_x_diff) * stimreps + par.df$B[,3]
-    
-      # like.ps <<- list(A = A,b = B + A, t0 = par.df$t0,
-      #  mean_v = MVs,sd_v = par.df$sd_v,
-      #  st0 = par.df$st0, N = par.df$N,
-      #  inh=INH  )
-    
   } else {
     
   #RANDOM
@@ -85,20 +64,10 @@ transform.dmc <- function(par.df)
     INH <- t_matrix(par.df$inh, length(stimreps)) + stimreps*t_matrix(
       inh_slope, length(stimreps))
 
-    A <-  t_matrix(par.df$A, length(stimreps))
-    
-    B_int <- t_matrix(par.df$B, length(stimreps))
-    B_fin <- t_matrix(par.df$finalB, length(stimreps))
-    B <- B_int
-    B[,3] <- ((B_fin[,3] - B_int[,3])/7) * stimreps + B_int[,3]
 
-    # random.ps <<- list(A = A,b = B + A, t0 = par.df$t0,
-    #    mean_v = MVs,sd_v = par.df$sd_v,
-    #    st0 = par.df$st0, N = par.df$N,
-    #    inh=INH)
   }
   # if (any (par.df$inh!=0)) browser()
-  list(A = A,b = B + A, t0 = par.df$t0,
+  list(A = par.df$A,b = par.df$B + par.df$A, t0 = par.df$t0,
        mean_v = MVs,sd_v = par.df$sd_v,
        st0 = par.df$st0, N = par.df$N,
        inh=INH
@@ -107,11 +76,9 @@ transform.dmc <- function(par.df)
 
 random.dmc<- function(n,p.df,model)
 {
-  # browser()
   rlba.norm(n,
-            
-    A = t(p.df$A[,1:p.df$N[1]]),
-    b = t(p.df$b[,1:p.df$N[1]]),
+    A = p.df$A[1:p.df$N[1]],
+    b = p.df$b[1:p.df$N[1]],
     mean_v = t(p.df$mean_v[,1:p.df$N[1]] - p.df$inh[,1:p.df$N[1]]),
     sd_v=p.df$sd_v[1:p.df$N[1]],
     t0=p.df$t0[1], 
