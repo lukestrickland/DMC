@@ -356,6 +356,11 @@ avps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=TRU
 
   model <- attributes(samples$data)$model
   facs <- names(attr(model,"factors"))
+  
+  cvs <- samples$data[,attr(model,"cvs"), drop=FALSE]
+  attr(cvs,"row.facs") <- apply(apply(
+  samples$data[,facs,drop=FALSE],2,as.character),1,paste,collapse=".")
+  
   if (any(is.na(factors))) factors <- facs
   if (!all(factors %in% facs))
     stop(paste("Factors argument must contain one or more of:",paste(facs,collapse=",")))
@@ -395,20 +400,21 @@ avps.post.predict.dmc = function(samples,n.post=100,probs=c(1:99)/100,random=TRU
   names(sim) <- names(samples$data)
   # Tweaks for Stop Signal
   if ( !any(names(samples$data)=="SSD") ) {
-    SSD <- rep(Inf,sum(ns))
-    leave.out <- -c(1:dim(samples$data)[2])[names(samples$data)=="RT"]
+    SSD <- rep(Inf,sum(ns)) 
+    leave.out <- -c(1:dim(samples$data)[2])[names(samples$data) %in% c("RT",names(cvs),"R2")]
   } else {
-    # Assumes last two are SSD and RT! FIX ME.
-    if (is.null(facs)) SSD <- samples$data$SSD else
-      SSD <- unlist(tapply(samples$data$SSD,samples$data[,facs],identity))
-    leave.out <- -c((dim(samples$data)[2]-1):dim(samples$data)[2])
+    # Assumes last two are SSD and RT! FIX ME. EG WONT WORK IF THERE ARE CVS
+    if ( is.null(facs) ) SSD <- samples$data$SSD else
+      SSD <- unlist(tapply(samples$data$SSD,samples$data[,facs],identity)) 
+    leave.out <- -c(1:dim(samples$data)[2])[names(samples$data) %in% c("RT","SSD")]
+    # leave.out <- -c((dim(samples$data)[2]-1):dim(samples$data)[2])
   }
   cat("\n")
   cat(paste("Simulating (\'.\'=",report,"): ",sep=""))
   for (i in names(samples$data)[leave.out])
     sim[[i]] <- factor(rep(NA,n.post*n.rep),levels=levels(samples$data[[i]]))
   for (i in 1:n.post) {
-    tmp <- simulate.dmc(posts[i,],model,ns,SSD=SSD)
+    tmp <- simulate.dmc(posts[i,],model,ns,SSD=SSD,cvs=cvs)
     sim[(1+(i-1)*n.rep):(i*n.rep),names(tmp)] <- tmp
     if ( (i %% report) == 0) cat(".")
   }
@@ -471,7 +477,6 @@ get.effects.dmc <- function (PPs, fun = function (x) {mean (x)}, lower=.025, upp
     sim.effects[j,1:noutput] <- fun(currentsim.effects)
 
   }
-
   ##Get a ggplot df with posterior mean, lower, and upper.
   effects.ggdf <-  t(apply(sim.effects, c(2), function(x) c(mean(x),
                                                 quantile(x, probs=c(lower,upper)))))
