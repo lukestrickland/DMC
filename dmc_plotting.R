@@ -1602,3 +1602,58 @@ plot_SS_if.dmc <- function(data,sim=NULL,minN=1,plot.it=TRUE,violin=.05,
 }
 
 
+
+ggplot.RA.dmc <- function (df, include.NR=FALSE, xaxis = 'R', panels.ppage=4, 
+                           nrow=NULL, ncol=NULL, acc.fun=
+                             function(x){as.numeric(x$S)==as.numeric(x$R)}) 
+  # xaxis is the name of the factor to put on the X axis  
+{
+  
+  if (include.NR) df.type <- "pps.NR" else df.type <- "pps"
+  if ( !is.null(attr(df, "gglist")) ) {
+    cat ("Treating as a pp object for a single participant") 
+    df <- attr(df, "gglist")[[df.type]]
+  }
+  
+  if ( !is.null(attr(attr(df, "av"), "gglist")) ) {
+    cat ("Treating as a pp object for a group of participants") 
+    df <- attr(attr(df, "av"), "gglist")[[df.type]]
+  }
+  
+  #remove cases where the combination of factors was not present in design  
+  df <- df[!is.nan(df$data),]
+  df <- df[acc.fun(df),]
+  df <- df[,!colnames(df) %in% "R"]
+  
+  grid <- colnames(df) [!colnames (df) %in% c(xaxis, "median", "lower", "upper", "data")]
+  
+  if (length(grid)==0) {
+    n.plots <-1 
+    plot.ind <- rep(1, length(df$data)) 
+  } else {
+    n.plots <- sum (!is.na((tapply(df$data, df[,c(grid)], function (x) 1)))) 
+    plot.ind <- as.numeric(factor(with(df, interaction(df[,grid]))))
+  }
+  
+  plot.pages <- ceiling(n.plots/panels.ppage)
+  
+  grid_labels <- labeller(label_value, .multi_line=F)
+  
+  plots <- list()
+  for (j in 1:plot.pages) {
+    
+    active.df <- df[plot.ind %in% ((j-1)*panels.ppage+1):(j* panels.ppage),]
+    
+    plot <- ggplot(active.df, aes_string(x = xaxis, y= 'median')) + 
+      geom_point(size=3) + geom_errorbar(aes(ymax = upper, ymin = lower), width= 0.2) +
+      geom_point(aes_string(x = xaxis, y= 'data'), pch=21, size=4, colour="black") +
+      geom_line(aes(group = 1, y=data), linetype=2) + ylab("Accuracy")
+    
+    if (length(grid)!=0) 
+      plot <- plot + facet_wrap(grid, labeller = grid_labels, scales = 'free_x', 
+                                nrow=nrow, ncol=ncol)
+    plots[[j]] <- plot
+  }
+  
+  if (length(plots)==1) plots[[1]] else plots
+}
