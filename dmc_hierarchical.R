@@ -2149,7 +2149,7 @@ run.grid.dmc <- function(fname,model.dir,model.file,user,n.add, # usually 1/3 of
                          GB=2, # GB per job 
                          wall.hours=100, # Wall time in hours
                          # required by grid to access R
-                         module_load="source /etc/profile.d/modules.sh\nmodule load R/3.3.2",
+                         module_load="source /etc/profile.d/modules.sh\nmodule load R",
                          froot="s",
                          verbose=TRUE,
                          RUN=TRUE,
