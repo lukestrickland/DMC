@@ -807,3 +807,26 @@ h.get_average_thetas <- function (regex, samples) {
 }
 
 
+
+
+get.subj.effects.m <- function (PPS, fun, names) {
+  EFFECTS <- lapply(PPS, get.subj.effects, fun=fun)
+  for (i in 1:length(names)) EFFECTS[[i]]$model <- names[i]
+  do.call(rbind, EFFECTS)
+}
+
+get.subj.effects <- function(PP, fun) {
+  for (i in 1:length(PP)){
+    effects<-get.subj.pp.MCI (PP[[i]], fun)
+    cat(i)
+    if (i ==1) out <- effects else out <- rbind(out,effects)
+  }
+  
+  ENS <- rownames(out)
+  OUT <- data.frame(out)
+  OUT$effect <- ENS
+  colnames(OUT) <- c("mean", "lower", "upper", "data", "effect")
+  OUT
+}
+
+
