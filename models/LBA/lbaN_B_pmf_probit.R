@@ -48,7 +48,6 @@ random.dmc <- function(n, p.df, model)
   #on PM trials, p.df2 will include the parameters for non-PM trials
   
   ##if else statement so that still works if there are 100% pm trigger failures
-  
   if (p.df$pmf[1] < 1) {
     #determine number of PM trigger failures
     pmfs <- sum(rbinom(n, 1, p.df$pmf[1]))
@@ -120,7 +119,6 @@ likelihood.dmc <- function(p.vector, data, min.like = 1e-10)
   is3OT <- !is2 & !data$R == "P" 
   #PM response
   is3PM <- !is2 & data$R == "P"
-
   
   #control block likelihood - L(two accumulators)
   likelihood[is2] <- n1PDFfixedt0.norm(
